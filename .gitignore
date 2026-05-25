@@ -1,0 +1,11 @@
+#Directories
+references/
+*quant/
+
+#Outputs and heavy files (except graphs)
+*.rds
+*.csv
+GSM*
+
+#R
+.Rhistory

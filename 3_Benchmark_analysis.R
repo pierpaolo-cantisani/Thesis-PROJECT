@@ -10,7 +10,7 @@ library(rGREAT)
 
 ### Importing data ###
 ##Importing myDiff
-myDiff25p_GR_hg38 <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/BS-Seq/dataset/myDiff25p_GR_hg38.rds")
+myDiff25p_GR_hg38 <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/2_BS-Seq/dataset_1/myDiff25p_GR_hg38.rds")
 #General df
 GR_df <- as.data.frame(myDiff25p_GR_hg38)
 general_df <- GR_df[, c("seqnames", "start", "meth.diff")]
@@ -32,7 +32,7 @@ write_output_file <- function(general_df, specific_df, Method_n) {
                      by = "coord_key",
                      sort = TRUE)
   
-  file_name = sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/benchmark/DM_sites_Met%d.csv", Method_n)
+  file_name = sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/3_Benchmark/dataset_1/DM_sites_Met%d.csv", Method_n)
   write.csv(output_df, file = file_name, row.names = FALSE)
   return(output_df)
 }
@@ -69,7 +69,7 @@ region_type <- apply(members, 1, function(m) {
 tss_df$region_type <- region_type
 tss_df <- tss_df %>% dplyr::rename(distanceToTSS = dist.to.feature, 
                                    SYMBOL = gene.symbol)
-DM_sites_M1 <- data.frame(tss_df[, c("region_type", "distanceToTSS", "SYMBOL")])
+DM_sites_M1 <- data.frame(tss_df[, c("region_type", "SYMBOL")])
 gr_for_M1 <- GR_data[tss_df$target.row]
 DM_sites_M1$coord_key <- paste(seqnames(gr_for_M1), start(gr_for_M1), sep="_")
 #Writing output file:
@@ -95,12 +95,12 @@ peakAnno <- annotatePeak(GR_data,
 peakAnno_df <- as.data.frame(peakAnno)
 peakAnno_df <- peakAnno_df %>% dplyr::rename("region_type" = annotation)
 peakAnno_df$coord_key <- paste(peakAnno_df$seqnames, peakAnno_df$start, sep="_")
-DM_sites_M2 <- data.frame(peakAnno_df[, c("region_type", "distanceToTSS", "SYMBOL", "coord_key")])
+DM_sites_M2 <- data.frame(peakAnno_df[, c("region_type", "SYMBOL", "coord_key")])
 M2 <- write_output_file(general_df, DM_sites_M2, 2)
 
 #Writing output file for Method 3:
 DM_sites_M3 <- peakAnno_df[(peakAnno_df$region_type == 'Promoter (<=1kb)') | (peakAnno_df$region_type == 'Promoter (1-2kb)'), ]
-DM_sites_M3 <- data.frame(DM_sites_M3[, c("region_type", "distanceToTSS", "SYMBOL", "coord_key")])
+DM_sites_M3 <- data.frame(DM_sites_M3[, c("region_type", "SYMBOL", "coord_key")])
 M3 <- write_output_file(general_df, DM_sites_M3, 3)
 
 
@@ -116,7 +116,6 @@ hits <- findOverlaps(GR_data, tss_points, maxgap = 10000, select = "all")
 anno_range_10kb_df <- data.frame(
   seqnames       = as.character(seqnames(GR_data)[queryHits(hits)]),
   start          = start(GR_data)[queryHits(hits)],
-  distanceToTSS  = start(GR_data)[queryHits(hits)] - start(tss_points)[subjectHits(hits)],
   feature        = names(tss_points)[subjectHits(hits)]
 )
 
@@ -128,10 +127,10 @@ symbols_4 <- mapIds(org.Hs.eg.db,
                     multiVals = "first")
 anno_range_10kb_df$SYMBOL <- as.character(symbols_4)
 anno_range_10kb_df$coord_key <- paste(anno_range_10kb_df$seqnames, anno_range_10kb_df$start, sep="_")
-anno_range_10kb_final <- anno_range_10kb_df %>% filter(!is.na(feature))
+anno_range_10kb_final <- anno_range_10kb_df %>% filter(!is.na(SYMBOL))
 
 #Writing output file:
-DM_sites_M4 <- anno_range_10kb_final[, c("distanceToTSS", "SYMBOL", "coord_key")]
+DM_sites_M4 <- anno_range_10kb_final[, c("SYMBOL", "coord_key")]
 M4 <- write_output_file(general_df, DM_sites_M4, 4)
 
 
@@ -165,7 +164,7 @@ symbols_5 <- mapIds(org.Hs.eg.db,
                     
 great_df$SYMBOL <- as.character(symbols_5)
 great_df$coord_key <- paste(great_df$seqnames, great_df$start, sep = "_")
-great_final <- great_df %>% filter(!is.na(feature))
+great_final <- great_df %>% filter(!is.na(SYMBOL))
 
 #Final output for Method 5:
 DM_sites_M5 <- great_final[, c("SYMBOL", "coord_key")]

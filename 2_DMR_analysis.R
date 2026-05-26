@@ -159,19 +159,6 @@ seqlevelsStyle(myDiff25p_GR) <- "UCSC"
 myDiff25p_GR_hg38 <- unlist(liftOver(myDiff25p_GR, chain))
 
 
-#Now the annotation of the universe (with CHIPseeker)
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
-myDiff_Anno  <- annotatePeak(myDiff_GR_hg38,
-                             tssRegion = c(-2000, 200),
-                             TxDb      = txdb,
-                             annoDb    = "org.Hs.eg.db")
-
-myDiff_Anno_df <- as.data.frame(myDiff_Anno)
-WGBS_universe <- na.omit(unique(data.frame("SYMBOL" = myDiff_Anno_df$SYMBOL)))
-
-
-#Exporting the universe:
-write.csv(WGBS_universe, file = "C:/Users/pierp/Desktop/THESIS PROJECT/2_BS-Seq/dataset_1/WGBS_universe.csv", row.names = FALSE)
 #Exporting DM sites:
 saveRDS(myDiff25p_GR_hg38, file = "C:/Users/pierp/Desktop/THESIS PROJECT/2_BS-Seq/dataset_1/myDiff25p_GR_hg38.rds")
 
@@ -185,8 +172,6 @@ meth <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/2_BS-Seq/dataset_1/meth.r
 meth_GR <- as(meth, "GRanges")
 seqlevelsStyle(meth_GR) <- "UCSC"
 meth_GR_hg38 <- unlist(liftOver(meth_GR, chain))
-#Exporting GRanges object
-saveRDS(meth_GR_hg38, "C:/Users/pierp/Desktop/THESIS PROJECT/2_BS-Seq/dataset_1/meth_GR_hg38.rds")
 
 #Now filtering meth for DM sites only, and exporting
 meth_df <- as.data.frame(meth_GR_hg38)
@@ -195,8 +180,7 @@ myDiff25p_GR_hg38_df <- as.data.frame(myDiff25p_GR_hg38)
 myDiff25p_GR_hg38_df$coord_key <- paste(myDiff25p_GR_hg38_df$seqnames, myDiff25p_GR_hg38_df$start, sep="_")
 
 meth25p <- meth_df %>% filter(coord_key %in% myDiff25p_GR_hg38_df$coord_key)
-write.csv(meth25p, "C:/Users/pierp/Desktop/THESIS PROJECT/2_BS-Seq/dataset_1/meth25p.csv", row.names = FALSE)   # For PIP 1
-saveRDS(meth_df, "C:/Users/pierp/Desktop/THESIS PROJECT/2_BS-Seq/dataset_1/meth_hg38.rds")                      # For PIP 2 (RDS is too heavy as a .csv)
+write.csv(meth25p, "C:/Users/pierp/Desktop/THESIS PROJECT/2_BS-Seq/dataset_1/meth25p.csv", row.names = FALSE)
 
 dev.off()
 
@@ -212,3 +196,18 @@ kp <- plotKaryotype(genome="hg38")
 kp <- kpPlotDensity(kp, myDiff25p_GR_hg38)
 
 dev.off()
+
+
+
+
+## DELETED
+
+#Now the annotation of the universe (with CHIPseeker)
+# txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+# myDiff_Anno  <- annotatePeak(myDiff_GR_hg38,
+#                              tssRegion = c(-2000, 200),
+#                              TxDb      = txdb,
+#                              annoDb    = "org.Hs.eg.db")
+# 
+# myDiff_Anno_df <- as.data.frame(myDiff_Anno)
+# WGBS_universe <- na.omit(unique(data.frame("SYMBOL" = myDiff_Anno_df$SYMBOL)))

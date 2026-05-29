@@ -4,7 +4,8 @@ references/
 
 #Outputs and heavy files (except graphs)
 *.rds
-*.csv
+DE_results.csv
+RNAseq_universe.csv
 GSM*
 
 #R

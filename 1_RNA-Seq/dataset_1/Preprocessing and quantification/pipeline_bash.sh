@@ -61,8 +61,7 @@ for ((i=1; i<13; i+=1)); do
     --html "$HOME/Multi-omics-analysis/01_rnaseq/fastq_trimmed/sample_${i}_fastp.html" \
     --json "$HOME/Multi-omics-analysis/01_rnaseq/fastq_trimmed/sample_${i}_fastp.json" \
     --qualified_quality_phred 20 \
-    --length_required 40
-
+    --length_required 40 && \
   rm "$HOME/Multi-omics-analysis/01_rnaseq/fastq/sample_${i}_merged.fastq.gz"
 
 done

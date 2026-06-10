@@ -1,6 +1,8 @@
 #Directories
 references/
 *quant/
+*quant_D2/
+NeuN/
 
 #Outputs and heavy files (except graphs)
 *.rds
@@ -8,7 +10,13 @@ DE_results.csv
 RNAseq_universe.csv
 GSM*
 GSE*
-Metadata_13059_2019_1747_MOESM1_ESM.xlsx
+Metadata_from_Paper.xlsx
+*.bgz.tbi
+*.bgz
+stats_table.csv
+full_qc_report*
+WGBS Graphs D1.pdf
+WGBS Graphs D2.pdf
 
 #R
 .Rhistory

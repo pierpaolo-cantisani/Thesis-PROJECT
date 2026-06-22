@@ -7,17 +7,25 @@ library(GenomicFeatures)
 library(GenomicRanges)
 library(rGREAT)
 
+# Note: each pipeline is intentionally self-contained (re-reads files,
+# re-computes matrices) so that PIP0/PIP1/PIP2 can be run independently.
 
 ### Importing data ###
 ##Importing myDiff
-myDiff10p_GR_hg38 <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/myDiff10p_GR_hg38.rds")
+myDiff25p_GR_hg38 <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/myDiff25p_GR_hg38.rds")
 #General df
-GR_df <- as.data.frame(myDiff10p_GR_hg38)
+GR_df <- as.data.frame(myDiff25p_GR_hg38)
 general_df <- GR_df[, c("seqnames", "start", "meth.diff")]
 general_df$coord_key <- paste(general_df$seqnames, general_df$start, sep="_")
 
 # In this pipeline the GRanges object for the annotation will be:
-GR_data <- myDiff10p_GR_hg38
+GR_data <- myDiff25p_GR_hg38
+
+#Ref for M1 and M5
+txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+
+#Used in M4 and M5
+annoData <- genes(txdb)
 
 
 
@@ -81,7 +89,7 @@ M1 <- write_output_file(general_df, DM_sites_M1, 1)
 ##### Methods 2 & 3: Nearest TSS with hierarchy(2), and proximal promoter(3) (CHIPseeker) #####
 
 #Now using CHIPseeker (hg38)
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+# Using txdb
 
 ##With CHIPseeker annotation the final list will contain the results of method 2. And the 
 ##genes annotated as "Promoter" will be the results of method 3, with promoter defined as (-2000, 200).
@@ -107,7 +115,6 @@ M3 <- write_output_file(general_df, DM_sites_M3, 3)
 
 ##### Method 4: CpG is in a range [-10 kb, + 10 kb] from TSS #####
 
-annoData <- genes(txdb)
 tss_points <- promoters(annoData, upstream = 0, downstream = 1)
 
 #Association CpG-gene
@@ -137,12 +144,10 @@ M4 <- write_output_file(general_df, DM_sites_M4, 4)
 
 #####
 ##### METHOD 5: rGREAT (-5 kb, 1 kb) plus extension until nearest gene up to 1 MB in both directions #####
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
-genes_GR <- genes(txdb)
 
-TSS_map <- extendTSS(genes_GR, gene_id_type = "ENTREZ", 
+TSS_map <- extendTSS(annoData, gene_id_type = "ENTREZ", 
                      mode = "basalPlusExt", 
-                     extend_from = c("TSS", "gene"), 
+                     extend_from = "TSS", 
                      basal_upstream = 5000, 
                      basal_downstream = 1000, 
                      extension = 1000000)

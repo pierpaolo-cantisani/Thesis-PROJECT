@@ -15,8 +15,10 @@ Metadata_from_Paper.xlsx
 *.bgz
 stats_table.csv
 full_qc_report*
-WGBS Graphs D1.pdf
 WGBS Graphs D2.pdf
+M_CpG_matrix.csv
+Additional_f6_ST4.txt
+RNA-Seq Graphs*
 
 #R
 .Rhistory

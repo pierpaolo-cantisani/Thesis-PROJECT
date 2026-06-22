@@ -11,7 +11,7 @@ library(cowplot)
 #q e N. Questo viola l'indipendenza alla base del test e rende i p-value anti-conservativi (troppo significativi). 
 #Per M4/M5, dove la molteplicità è alta, l'effetto è marcato. Non è un bug di codice, è un problema di validità del test: 
 #in tesi è esattamente il punto su cui un biostatistico ti incalzerebbe. La via difendibile è fare questi test a livello di 
-#(un gene = un'osservazione, classificato per il suo trend prevalente o per il sito a maggior |meth.diff|), oppure dichiarare apertamente il limite.
+#(un gene = un'osservazione, classificato per il suo trend prevalente o per il sito a maggior |deltaB|), oppure dichiarare apertamente il limite.
 #Secondo punto statistico: stai facendo ~15 test ipergeometrici per metodo × 5 metodi ≈ 75 test, senza nessuna correzione per multiple testing su questa famiglia. 
 #Le sezioni 2-4 producono p-value che poi interpreti come "YES se < 0.05". Con 75 test, diversi saranno < 0.05 per caso. 
 #Anche solo un BH sulla famiglia di test concettualmente omogenei renderebbe le conclusioni molto più solide.
@@ -50,12 +50,12 @@ library(cowplot)
 
 ### 0. Importing DE genes ###
 #Importing RNA-Seq DE genes
-DE_results <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/1_RNA-Seq/DE_results.csv")
+DE_results <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/DE_results.csv")
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
 ## Obtaining the universe N: 
 #Importing RNA-seq universe (all genes considered for the DESeq2 analysis)
-RNAseq_universe <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/1_RNA-Seq/RNAseq_universe.csv", col.names = c("SYMBOL", "log2FoldChange", "padj"))
+RNAseq_universe <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/RNAseq_universe.csv", col.names = c("SYMBOL", "log2FoldChange", "padj"))
 
 ## Choosing "universe" as the RNAseq_universe. So that the METHOD's association can theorically connect to any of those genes.
 universe <- RNAseq_universe$SYMBOL
@@ -76,7 +76,7 @@ for(METHOD in 1:5) {
   ##### CODE START: ##### 
   
   #Importing DM METHOD lists:
-  DM_sites <- read.csv(sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met%d.csv", METHOD))
+  DM_sites <- read.csv(sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met%d.csv", METHOD))
   DM_genes <- unique(DM_sites$SYMBOL)
   
   DM_genes_univ <- unique(intersect(DM_sites$SYMBOL, universe))
@@ -85,7 +85,7 @@ for(METHOD in 1:5) {
   ### 1. Analysis of the intersection between DE genes and DM sites ###
   
   intersect_genes <- unique(DM_sites$SYMBOL[DM_sites$SYMBOL %in% DE_results$SYMBOL])
-  intersect_df <- merge(DM_sites[, c("coord_key", "meth.diff", "SYMBOL")], DE_results[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
+  intersect_df <- merge(DM_sites[, c("coord_key", "deltaB", "SYMBOL")], DE_results[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
   
   ## Hypergeometric test
   #Are DE genes more Differentially methylated compared to how differentially methylated all genes are?
@@ -187,8 +187,8 @@ for(METHOD in 1:5) {
   ##2.3: Association: UP/DOWN DE vs Hyper/Hypo DM
   
   #Obtaining hypo/hyper lists
-  hypo_DM <- DM_sites %>% filter(meth.diff < 0)
-  hyper_DM <- DM_sites %>% filter(meth.diff > 0)
+  hypo_DM <- DM_sites %>% filter(deltaB < 0)
+  hyper_DM <- DM_sites %>% filter(deltaB > 0)
   hypo_int_DM <- hypo_DM %>% filter(SYMBOL %in% DE_results$SYMBOL)
   hyper_int_DM <- hyper_DM %>% filter(SYMBOL %in% DE_results$SYMBOL)
   #I'm not filtering for unique genes. So there will be duplicates: this analysis will be done for site, rather than gene
@@ -232,12 +232,14 @@ for(METHOD in 1:5) {
   
   ### 3: The more the sites are differentially methylated (in magnitude), the more the gene is up/down regulated? (Correlation between magnitude of methyl and up/down regulation) ###
   
+  ### 3: The more the sites are differentially methylated (in magnitude), the more the gene is up/down regulated? (Correlation between magnitude of methyl and up/down regulation) ###
+  
   #Considering unique genes: meth will be the mean of the sites
   #Using all of the DM genes (in the universe), not the intersection (the intersection will be then highlighted in the graph)
-  DM_univ_df <-  merge(DM_sites[, c("coord_key", "meth.diff", "SYMBOL")], RNAseq_universe[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
+  DM_univ_df <-  merge(DM_sites[, c("coord_key", "deltaB", "SYMBOL")], RNAseq_universe[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
   
   #Importing M-values
-  Scalar_M <- read.xlsx("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Method_final_df.xlsx", sheet = METHOD)
+  Scalar_M <- read.xlsx("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Method_final_df.xlsx", sheet = METHOD)
   
   gene_level_df <- Scalar_M %>%
     group_by(SYMBOL) %>% summarise(
@@ -456,7 +458,7 @@ row.names(final_df) <- c("Sign of inters (padj)",
                          "sites vs log2FC (rho)", "sites vs log2FC (padj)")
 
 #Importing old Stats table:
-Stats_table <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Stats_table.csv")
+Stats_table <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Stats_table.csv")
 rownames(Stats_table) <- Stats_table$metric
 Stats_table$metric <- NULL
 
@@ -468,11 +470,11 @@ Stats_table_final <- Stats_table_final[ , c("metric", setdiff(names(Stats_table_
 
 
 #Writing on file
-write.xlsx(Stats_table_final, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Stats_table_final.xlsx", rowNames = FALSE)
+write.xlsx(Stats_table_final, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Stats_table_final.xlsx", rowNames = FALSE)
 
 
 ##Plotting graphs:
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Additional_comparison D2.pdf", height = 10, width = 15)
+pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Additional_comparison D1.pdf", height = 10, width = 15)
 
 plot_grid(plotlist = magnitude_list, nrow = 2, ncol= 3)
 plot_grid(plotlist = num_barplot_list, nrow = 2, ncol= 3)

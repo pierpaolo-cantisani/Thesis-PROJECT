@@ -10,20 +10,24 @@ library(rGREAT)
 
 ### Importing data ###
 ##Importing myDiff
-myDiff25p_GR_hg38 <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/myDiff25p_GR_hg38.rds")
+sign_DM <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/2_BS-Seq/sign_DM.csv")
 #General df
-GR_df <- as.data.frame(myDiff25p_GR_hg38)
-general_df <- GR_df[, c("seqnames", "start", "meth.diff")]
+general_df <- sign_DM[, c("seqnames", "start", "deltaB")]
 general_df$coord_key <- paste(general_df$seqnames, general_df$start, sep="_")
 
 # In this pipeline the GRanges object for the annotation will be:
-GR_data <- myDiff25p_GR_hg38
+GR_data <- GRanges(
+  seqnames = sign_DM$seqnames,
+  ranges   = IRanges(start = sign_DM$start, end = sign_DM$start),   # CpG = 1 bp, start==end
+  strand   = "*"                                   
+)
 
 #Ref for M1 and M5
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 
 #Used in M4 and M5
 annoData <- genes(txdb)
+
 
 
 ### --- Association CpG-Gene : Methods --- ###
@@ -37,7 +41,7 @@ write_output_file <- function(general_df, specific_df, Method_n) {
                      by = "coord_key",
                      sort = TRUE)
   
-  file_name = sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met%d.csv", Method_n)
+  file_name = sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met%d.csv", Method_n)
   write.csv(output_df, file = file_name, row.names = FALSE)
   return(output_df)
 }
@@ -86,7 +90,7 @@ M1 <- write_output_file(general_df, DM_sites_M1, 1)
 ##### Methods 2 & 3: Nearest TSS with hierarchy(2), and proximal promoter(3) (CHIPseeker) #####
 
 #Now using CHIPseeker (hg38)
-# Using txdb
+#Using txdb
 
 ##With CHIPseeker annotation the final list will contain the results of method 2. And the 
 ##genes annotated as "Promoter" will be the results of method 3, with promoter defined as (-2000, 200).

@@ -1,11 +1,7 @@
 library(data.table)
 library(methylKit)
 library(ggplot2)
-library(org.Hs.eg.db)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
-library(ChIPseeker)
 library(rtracklayer)
-library(dplyr)
 library(karyoploteR)
 
 
@@ -93,6 +89,7 @@ rm(methyl_obj)
 meth=unite(filtered_methyl_obj, destrand=FALSE)
 
 rm(filtered_methyl_obj)
+
 ##Explorative analysis on the merged:
 clusterSamples(meth, dist="correlation", method="ward.D2", plot=TRUE)
 PCASamples(meth)
@@ -109,17 +106,18 @@ covariates <- data.frame(replicate = factor(c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6
 myDiff <- calculateDiffMeth(meth,
                             covariates = covariates,
                             overdispersion = "MN",
-                            test = "Chisq")            #With correction the default is the F test: must force this for the comparison
+                            test = "F")
 
-myDiff <- readRDS("myDiff.rds")
+# Diff Analysis was done on another machine. Then imported:
+#myDiff <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/myDiff.rds")
 
 
 ##Finally: selecting differentially methylated bases:
 #get all differentially methylated bases
-myDiff10p=getMethylDiff(myDiff,difference=10,qvalue=0.05)
+myDiff25p=getMethylDiff(myDiff,difference=25,qvalue=0.01)
 #get hyper and hypo
-myDiff10p.hyper=getMethylDiff(myDiff,difference=10,qvalue=0.05,type="hyper")
-myDiff10p.hypo=getMethylDiff(myDiff,difference=10,qvalue=0.05,type="hypo")
+myDiff25p.hyper=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hyper")
+myDiff25p.hypo=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hypo")
 
 
 
@@ -133,13 +131,13 @@ myDiff_df_plot <- myDiff_df[!is.na(myDiff_df$qvalue) &
 
 ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
   geom_point(alpha = 0.5) +
-  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
-  geom_vline(xintercept = c(-10, 10), linetype = "dashed", color = "blue") +
+  geom_hline(yintercept = -log10(0.01), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = c(-25, 25), linetype = "dashed", color = "blue") +
   geom_point(data = myDiff_df_plot[!is.na(myDiff_df_plot$qvalue) & 
-                                     myDiff_df_plot$qvalue < 0.05 & 
-                                     abs(myDiff_df_plot$meth.diff) > 10, ], color = "red") +
+                                     myDiff_df_plot$qvalue < 0.01 & 
+                                     abs(myDiff_df_plot$meth.diff) > 25, ], color = "red") +
   theme_minimal() +
-  labs(title = "Volcano plot: infection", x = "meth.diff", y = "-log10(adj pvalue)")
+  labs(title = "Volcano plot: DM sites", x = "meth.diff", y = "-log10(adj pvalue)")
 
 
 
@@ -152,9 +150,10 @@ ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
 
 #Download chain and meth files
 chain <- import.chain("C:/Users/pierp/Desktop/THESIS PROJECT/references/hg19ToHg38.over.chain")
-meth <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth.rds")
+#Also this was imported from another machine
+#meth <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth.rds")
 
-dm_hg19_GR <- as(myDiff10p, "GRanges")
+dm_hg19_GR <- as(myDiff25p, "GRanges")
 meth_dm <- selectByOverlap(meth, dm_hg19_GR)
 
 # meth_dm only has DM sites
@@ -163,7 +162,7 @@ meth_dm_GR <- as(meth_dm, "GRanges")
 
 ### Now the liftovers: hg19 -> hg38
 
-##First, liftover and exporting the meth10p
+##First, liftover and exporting the meth25p
 seqlevelsStyle(meth_dm_GR) <- "UCSC"
 meth_DM_hg38 <- unlist(liftOver(meth_dm_GR, chain))
 
@@ -171,18 +170,22 @@ meth_DM_hg38 <- unlist(liftOver(meth_dm_GR, chain))
 meth_DM_hg38_df <- as.data.frame(meth_DM_hg38)
 meth_DM_hg38_df$coord_key <- paste(meth_DM_hg38_df$seqnames, meth_DM_hg38_df$start, sep="_")
 
-write.csv(meth_DM_hg38_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth10p.csv", row.names = FALSE)
+write.csv(meth_DM_hg38_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth25p.csv", row.names = FALSE)
 
 
-## Then, liftover for myDiff10p:
-myDiff10p_GR <- as(myDiff10p, "GRanges")
-seqlevelsStyle(myDiff10p_GR) <- "UCSC"
-myDiff10p_GR_hg38 <- unlist(liftOver(myDiff10p_GR, chain))
+## Then, liftover for myDiff25p:
+myDiff25p_GR <- as(myDiff25p, "GRanges")
+seqlevelsStyle(myDiff25p_GR) <- "UCSC"
+myDiff25p_GR_hg38 <- unlist(liftOver(myDiff25p_GR, chain))
 #df and coord_key
-myDiff10p_GR_hg38$coord_key <- paste(seqnames(myDiff10p_GR_hg38), start(myDiff10p_GR_hg38), sep = "_")
+myDiff25p_GR_hg38$coord_key <- paste(seqnames(myDiff25p_GR_hg38), start(myDiff25p_GR_hg38), sep = "_")
+
+#Sanity check!! Liftovers are the same?
+stopifnot(setequal(meth_DM_hg38_df$coord_key, myDiff25p_GR_hg38$coord_key))
+
 
 #Exporting DM sites:
-saveRDS(myDiff10p_GR_hg38, file = "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/myDiff10p_GR_hg38.rds")
+saveRDS(myDiff25p_GR_hg38, file = "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/myDiff25p_GR_hg38.rds")
 
 dev.off()
 
@@ -195,6 +198,6 @@ pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/Chr DM distributio
 ## Checking if their position is clusterized around centromeres. Then considering filtering
 
 kp <- plotKaryotype(genome="hg38")
-kp <- kpPlotDensity(kp, myDiff10p_GR_hg38)
+kp <- kpPlotDensity(kp, myDiff25p_GR_hg38)
 
 dev.off()

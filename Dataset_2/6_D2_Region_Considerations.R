@@ -17,6 +17,9 @@ library(openxlsx)
 DE_results <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/1_RNA-Seq/DE_results.csv")
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
+#Ref
+txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+
 #Creating list for graphs and table
 graph_list <- list()
 Stats_region <- list()
@@ -38,7 +41,7 @@ for(METHOD in 1:5){
   
   ## Annotation: CpG that were part of an association for each method are reannotated with the same tool (annotatr): in this way
   #              they will be assigned to a gene region, and they will be comparable.
-  txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+  #Using txdb
   
   peakAnno <- annotatePeak(DM_GR,
                            tssRegion = c(-2000, 200),   #This is the standard definition for Promoter. Can be arbitrarly changed
@@ -54,7 +57,6 @@ for(METHOD in 1:5){
   intersect_genes <- intersect(DE_results$SYMBOL, DM_ann_df$SYMBOL)
   
   ## DMR on promoter/exon/intron/UTR/intergenic genes
-  #! exon contains 5' and 3' UTR. "others" contains intergenic and 1to5kb upstream
   prom_genes <- unique(DM_ann_df$SYMBOL[grepl("^Promoter", DM_ann_df$annotation)])
   exon_genes <- unique(DM_ann_df$SYMBOL[grepl("^Exon", DM_ann_df$annotation)])
   intron_genes <- unique(DM_ann_df$SYMBOL[grepl("^Intron", DM_ann_df$annotation)])
@@ -98,9 +100,9 @@ for(METHOD in 1:5){
   
   #Intergenic
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))             # all DM genes
-  m <- as.numeric(length(interg_genes))                         # intergenic DM genes
+  m <- as.numeric(length(interg_genes))                         # Intergenic DM genes
   k <- as.numeric(length(intersect_genes))                      # all intersecting DM genes
-  q <- as.numeric(length(interg_inter_genes))                   # intersecting interg on DM genes
+  q <- as.numeric(length(interg_inter_genes))                   # intersecting intergenic on DM genes
   hyp_interg <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
   
   #5' UTR
@@ -110,7 +112,7 @@ for(METHOD in 1:5){
   q <- as.numeric(length(UTR5_inter_genes))                     # intersecting 5'UTR on DM genes
   hyp_5UTR <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
   
-  #Intergenic
+  #3'UTR
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))              # all DM genes
   m <- as.numeric(length(UTR3_genes))                            # 3'UTR DM genes
   k <- as.numeric(length(intersect_genes))                       # all intersecting DM genes
@@ -118,19 +120,36 @@ for(METHOD in 1:5){
   hyp_3UTR <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
   
   
-  perc_prom <- as.numeric(length(prom_inter_genes))*100/as.numeric(length(prom_genes))     #as.numeric is probably useless here
-  perc_ex = as.numeric(length(exon_inter_genes))*100/as.numeric(length(exon_genes))
-  perc_int = as.numeric(length(intron_inter_genes))*100/as.numeric(length(intron_genes))
-  perc_interg = as.numeric(length(interg_inter_genes))*100/as.numeric(length(interg_genes))
-  perc_5UTR = as.numeric(length(UTR5_inter_genes))*100/as.numeric(length(UTR5_genes))
-  perc_3UTR = as.numeric(length(UTR3_inter_genes))*100/as.numeric(length(UTR3_genes))
+  safe_perc <- function(num, den) if (den > 0) num * 100 / den else NA_real_  #safe against divisions with 0
+  perc_prom  <- safe_perc(length(prom_inter_genes),  length(prom_genes))
+  perc_ex    <- safe_perc(length(exon_inter_genes),  length(exon_genes))
+  perc_int   <- safe_perc(length(intron_inter_genes), length(intron_genes))
+  perc_interg <- safe_perc(length(interg_inter_genes), length(interg_genes))
+  perc_5UTR  <- safe_perc(length(UTR5_inter_genes),  length(UTR5_genes))
+  perc_3UTR  <- safe_perc(length(UTR3_inter_genes),  length(UTR3_genes))
   
-  Stats_region[[METHOD]] <- c(paste0(round(perc_prom, 1)), hyp_prom_trend, paste0(round(perc_ex, 1)), hyp_ex, 
-                              paste0(round(perc_int, 1)), hyp_int, paste0(round(perc_interg, 1)), hyp_interg,
-                              paste0(round(perc_5UTR, 1)), hyp_5UTR, paste0(round(perc_3UTR, 1)), hyp_3UTR)
-  names(Stats_region[[METHOD]]) <- c("Perc ∩ prom", "Sign prom (p)", "Perc ∩ exon", "Sign exon (p)", "Perc ∩ intron", 
-                                     "Sign intron (p)", "Perc ∩ interg", "Sign interg (p)", "Perc ∩ 5'UTR", "Sign 5'UTR (p)",
-                                     "Perc ∩ 3'UTR", "Sign 3'UTR (p)")
+  
+  ##Multiple test correction: BH
+  pvals_raw <- c(prom = hyp_prom_trend, exon = hyp_ex, intron = hyp_int,
+                 interg = hyp_interg, UTR5 = hyp_5UTR, UTR3 = hyp_3UTR)
+  
+  #BH
+  pvals_adj <- p.adjust(pvals_raw, method = "BH")
+  
+  Stats_region[[METHOD]] <- c(
+    round(perc_prom, 1),    pvals_adj["prom"],
+    round(perc_ex, 1),      pvals_adj["exon"],
+    round(perc_int, 1),     pvals_adj["intron"],
+    round(perc_interg, 1),  pvals_adj["interg"],
+    round(perc_5UTR, 1),    pvals_adj["UTR5"],
+    round(perc_3UTR, 1),    pvals_adj["UTR3"]
+  )
+  names(Stats_region[[METHOD]]) <- c("Perc ∩ prom",   "Sign prom (padj)",
+                                     "Perc ∩ exon",   "Sign exon (padj)",
+                                     "Perc ∩ intron", "Sign intron (padj)",
+                                     "Perc ∩ interg", "Sign interg (padj)",
+                                     "Perc ∩ 5'UTR",  "Sign 5'UTR (padj)",
+                                     "Perc ∩ 3'UTR",  "Sign 3'UTR (padj)")
   
   
   
@@ -221,11 +240,15 @@ for(METHOD in 1:5){
 }
 
 #Graph Output
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Region_analysis_ChIPseeker.pdf", height = 10, width = 15)
+pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Region_analysis_ChIPseeker D1.pdf", height = 10, width = 15)
 plot_grid(plotlist = graph_list, ncol = 2)
 dev.off()
 
 #Stats output
 Stats_df <- as.data.frame(do.call(cbind, Stats_region))
 colnames(Stats_df) <- sprintf("M%d", seq_along(Stats_region))
+Stats_df$metric <- rownames(Stats_df)
+Stats_df <- Stats_df[ , c("metric", setdiff(names(Stats_df), "metric"))]  # Puts "metric" as first column
+
+#Output
 write.xlsx(Stats_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Stats_table_region.xlsx", rowNames = FALSE)

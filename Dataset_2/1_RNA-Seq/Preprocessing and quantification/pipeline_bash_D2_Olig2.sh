@@ -77,7 +77,7 @@ for ((i=1988; i<=2026; i++)); do
   echo "Quantifying sample: ${i}"
 
   salmon quant -l A \
-        -i references/salmon_index_hg38_49 \
+        -i references/salmon_idx_spliced_intron_hg38 \
         -r "fastq_trimmed/SRR634${i}_trimmed.fastq.gz" \
         -p 2 \
         --validateMappings \

@@ -3,7 +3,7 @@ library(DESeq2)
 library(UpSetR)
 library(ggplot2)
 library(cowplot)
-library(openxlsx)
+library(writexl)
 
 
 ### Razionale Analisi: 
@@ -15,8 +15,8 @@ library(openxlsx)
 
 ##Pipeline 2 mi restituisce quanto ogni metodo è in grado di catturare il trend generale dei siti DM. 
 # Dà risultati diversi dalla pipeline 1 ma vanno interpretati correttamente:
-# Non c'è intersezione DE, quindi questa mi dice: quale metodo trova più "quadranti", e "precision in generale
-# !! da capire se fare intersezione con DE
+# Non c'è intersezione DE, quindi questa mi dice: quale metodo trova più "quadranti", e "precision" in generale
+
 
 
 #QUINDI:  PIP0 è esplorativa sulla lista di geni
@@ -112,7 +112,7 @@ Upset_genes <- lapply(genes_by_region, function(g) {
 Upset_genes_df <- as.data.frame(Upset_genes, stringsAsFactors = FALSE, check.names = FALSE)
 colnames(Upset_genes_df) <- cate_names
 
-write.xlsx(Upset_genes_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Upset_genes.xlsx", rowNames = FALSE)
+write_xlsx(Upset_genes_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Upset_genes.xlsx")
 
 
 
@@ -162,9 +162,9 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
 
 ## Importing files
 
-#meth10p <- choice at the beginning
+#meth25p <- choice at the beginning
 dds <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/dds.rds")
-meth10p <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth10p.csv")
+meth25p <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth25p.csv")
 sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/DE_results.csv")
 names(sign_DE)[names(sign_DE) == "hugo_symbol"] <- "SYMBOL"
 
@@ -178,18 +178,18 @@ M5_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/D
 
 ##Methylation: Creating the DM matrix:
 # Selecting columns numCs and numTs by names
-cs_cols <- grep("^numCs\\d+$", colnames(meth10p), value = TRUE)
-ts_cols <- grep("^numTs\\d+$", colnames(meth10p), value = TRUE)
+cs_cols <- grep("^numCs\\d+$", colnames(meth25p), value = TRUE)
+ts_cols <- grep("^numTs\\d+$", colnames(meth25p), value = TRUE)
 
 #Extracting matrices (as.matrix)
-numCs <- as.matrix(meth10p[, cs_cols])
-numTs <- as.matrix(meth10p[, ts_cols])
+numCs <- as.matrix(meth25p[, cs_cols])
+numTs <- as.matrix(meth25p[, ts_cols])
 
 # Obtaining the matrix for M-values (log2((numCs + 1) / (numTs + 1)))
 Matrix_Mv <- log2((numCs + 1) / (numTs + 1))
 
 #Changing col and row names
-rownames(Matrix_Mv) <- meth10p$coord_key
+rownames(Matrix_Mv) <- meth25p$coord_key
 
 new_names <- sub("numCs", "", colnames(Matrix_Mv))
 colnames(Matrix_Mv) <- new_names
@@ -238,34 +238,7 @@ for (m in seq_along(Matrix_exp)) {
 message("CHECK PASSED")
 
 
-
-### 2. Regression linear model ###
-lm_res_list <- list()
-sign_padj_list <- list()
-for(m in seq_along(Matrix_exp)) {
-  res_t <- sapply(seq_len(nrow(Matrix_exp[[m]])), function (i) {
-    lm_df <- data.frame(
-      expr = Matrix_exp[[m]][i, ],
-      Mval = Matrix_Mval[[m]][i, ]
-    )
-    fit <- lm(expr ~ Mval, data = lm_df)
-    coef(summary(fit))["Mval", c("Estimate", "Pr(>|t|)")]
-  })
-  res <- t(res_t)
-  colnames(res) <- c("beta_mval", "pvalue_mval")
-  res <- as.data.frame(res)
-  res$padj <- p.adjust(res$pvalue_mval, method = "BH")
-  res$SYMBOL <- row.names(Matrix_exp[[m]])
-  
-  lm_res_list[[m]] <- res
-  sign_padj_list[[m]] <- res %>% filter(padj < 0.05)
-}
-names(lm_res_list) <- paste0("M", seq_along(Matrix_exp))
-names(sign_padj_list) <- paste0("M", seq_along(Matrix_exp))
-
-
-
-### 3. Spearman Correlation ###
+### 2. Spearman Correlation ###
 Spear_res_list <- list()
 Spear_padj_list <- list()
 for(m in seq_along(Matrix_exp)) {
@@ -288,45 +261,29 @@ names(Spear_padj_list) <- paste0("M", seq_along(Matrix_exp))
 
 
 
-### 4. Visualizations for METHOD COMPARISONS ###
+### 3. Visualizations for METHOD COMPARISONS ###
 
 ## Identifying unique/intersecting/common genes to all methods ##
 
-## 1) Upset plot significant-only ##
-
-# #Upset plot lm
-# sig_symbol_list <- lapply(sign_padj_list, function(x) {
-#   s <- x$SYMBOL
-#   s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
-#   unique(s)
-# })
-# #names(sig_symbol_list) <- names(lm_res_list)
-# 
-# #Plot significant lm
-# upset(fromList(sig_symbol_list),
-#       mainbar.y.label = "Intersecting sign genes - lm",
-#       sets.x.label = "Tot genes per method")
-# 
-# 
-# #Upset plot Spearman
-# Spear_symbol_list <- lapply(Spear_padj_list, function(x) {
-#   s <- x$SYMBOL
-#   s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
-#   unique(s)
-# })
-# names(Spear_symbol_list) <- names(Spear_res_list)
-# 
-# #Plot significant Spearman
-# upset(fromList(Spear_symbol_list),
-#       mainbar.y.label = "Intersecting sign genes - Spearman",
-#       sets.x.label = "Tot genes per method")
+#Upset plot Spearman
+Spear_symbol_list <- lapply(Spear_padj_list, function(x) {
+  s <- x$SYMBOL
+  s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
+  unique(s)
+})
+names(Spear_symbol_list) <- names(Spear_res_list)
+ 
+#Plot significant Spearman
+upset(fromList(Spear_symbol_list),
+      mainbar.y.label = "Intersecting sign genes - Spearman",
+      sets.x.label = "Tot genes per method")
 
 
 
 ## 2) Spearman correlation visualization ##
 
 #2.1: Rho distribution in methods
-df_Spear <- bind_rows(Spear_res_list, .id = "method")
+df_Spear <- bind_rows(Spear_padj_list, .id = "method")
 
 #Density
 ggplot(df_Spear, aes(x = rho, fill = method)) +
@@ -336,52 +293,26 @@ ggplot(df_Spear, aes(x = rho, fill = method)) +
   theme_minimal()
 
 
+### 2) Percentage of significant and unique/different genes ###
+strip_suffix <- function(x) unique(sub("\\.\\d+$", "", x))
 
-#2.2: Rho vs p-value
-gg_list <- list()
-Methods <- unique(df_Spear$method)
-
-#Calculating limit for the graph
-y_max <- max(-log10(df_Spear$padj), na.rm = TRUE)
-y_max <- y_max * 1.05
-
-for(j in Methods) {
-  df_temp <- df_Spear %>% filter(method == j)
-  
-  gg_list[[j]] <- ggplot(df_temp, aes(x = rho, y = -log10(padj))) +
-    geom_point(alpha = 0.5) +
-    geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
-    geom_point(data = df_temp[df_temp$padj < 0.05, ], color = "red") +
-    coord_cartesian(xlim = c(-1, 1), ylim = c(0, y_max)) +
-    theme_minimal() +
-    labs(title = sprintf("PIP 1 - Volcano plot Spearman: %s", j), x = "Rho (Spearman)", y = "-log10(adj pvalue)")
-}
-grid <- plot_grid(plotlist = gg_list, nrow = 2, ncol = 2)
-print(grid)
-
-
-### 3) Percentage of significant and unique/different genes ###
 compare_table <- data.frame(
-  "Method" = names(lm_res_list),
+  "Method" = names(Spear_res_list),
   "Tot associations - intersection" = sapply(seq_along(Matrix_Mval), function(j) {
     nrow(Matrix_Mval[[j]])
-  }),
-  "Perc sig lm" = sapply(seq_along(sign_padj_list), function(i) {
-    length(sign_padj_list[[i]]$padj)/length(lm_res_list[[i]]$padj)
   }),
   "Perc sig Spearman" = sapply(seq_along(Spear_padj_list), function(i) {
     length(Spear_padj_list[[i]]$padj)/length(Spear_res_list[[i]]$padj)
   }),
-  "Perc unique sig lm" = sapply(seq_along(sign_padj_list), function(i) {
-    unique <- setdiff(lm_res_list[[i]]$SYMBOL, unlist(lapply(lm_res_list[-i], function(x) x$SYMBOL)))
-    unique_sig <- setdiff(sign_padj_list[[i]]$SYMBOL, unlist(lapply(sign_padj_list[-i], function(x) x$SYMBOL)))
-    length(unique_sig)/length(unique)
-  }),
   "Perc unique sig Spearman" = sapply(seq_along(Spear_padj_list), function(i) {
-    unique <- setdiff(Spear_res_list[[i]]$SYMBOL, unlist(lapply(Spear_res_list[-i], function(x) x$SYMBOL)))
-    unique_sig <- setdiff(Spear_padj_list[[i]]$SYMBOL, unlist(lapply(Spear_padj_list[-i], function(x) x$SYMBOL)))
-    length(unique_sig)/length(unique)
-  })
+    unique_sig <- setdiff(strip_suffix(Spear_padj_list[[i]]$SYMBOL),
+                          strip_suffix(unlist(lapply(Spear_padj_list[-i], function(x) x$SYMBOL))))
+    unique_all <- setdiff(strip_suffix(Spear_res_list[[i]]$SYMBOL),
+                          strip_suffix(unlist(lapply(Spear_res_list[-i], function(x) x$SYMBOL))))
+    length(unique_sig) / length(unique_all)
+  }),
+  check.names = FALSE,
+  stringsAsFactors = FALSE
 )
 
 Pip1_table <- as.data.frame(t(compare_table))
@@ -414,7 +345,7 @@ create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataf
 ### 1. Importing files and matrix/dataframes creation ###
 
 ##Importing files
-meth10p <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth10p.csv")
+meth25p <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth25p.csv")
 rnaseq_all <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/RNAseq_universe.csv")
 rnaseq_all <- rnaseq_all %>% dplyr::rename("SYMBOL" = hugo_symbol)
 
@@ -432,17 +363,17 @@ M5_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/D
 
 ##Methylation: Creating the DM matrix:
 # Selecting columns numCs and numTs by names
-cs_cols <- grep("^numCs\\d+$", colnames(meth10p), value = TRUE)
-ts_cols <- grep("^numTs\\d+$", colnames(meth10p), value = TRUE)
+cs_cols <- grep("^numCs\\d+$", colnames(meth25p), value = TRUE)
+ts_cols <- grep("^numTs\\d+$", colnames(meth25p), value = TRUE)
 
 
 #Extracting matrices (as.matrix)
-numCs <- as.matrix(meth10p[, cs_cols])
-numTs <- as.matrix(meth10p[, ts_cols])
+numCs <- as.matrix(meth25p[, cs_cols])
+numTs <- as.matrix(meth25p[, ts_cols])
 
 #Obtaining the matrix for M-values (log2((numCs + 1) / (numTs + 1)))
 Matrix_Mv_2 <- log2((numCs + 1) / (numTs + 1))
-rownames(Matrix_Mv_2) <- meth10p$coord_key
+rownames(Matrix_Mv_2) <- meth25p$coord_key
 
 #Obtaining the delta matrix
 uneven <- seq(1, ncol(Matrix_Mv_2), by = 2)    #TB is uneven, Ctrl is even!!
@@ -499,11 +430,23 @@ quadrant_enrichment <- sapply(Method_final_df, function(df) {
   expected_total <- q2 + q4
   unexpected_total <- q1 + q3
   
+  #And statistics: Binomial test: H0 = 50/50 split, H1 = expected > unexpected
+  p_bin_test <- binom.test(expected_total, expected_total + unexpected_total, p = 0.5, alternative = "greater")$p.value
+  
   #This next one (expected_perc) is the fundamental metric: the % of points in the expected quadrants.
   c(expected_perc = 100 * expected_total / (expected_total + unexpected_total),
-    odds_ratio = expected_total / unexpected_total)
+    odds_ratio = expected_total / unexpected_total, 
+    pvalue_quadrants = p_bin_test)
+
 })
+
 quadrant_table <- as.data.frame(quadrant_enrichment)
+
+#Multiple test correction: BH
+quadrant_table["pvalue_quadrants_BH", ] <- p.adjust(
+  as.numeric(quadrant_table["pvalue_quadrants", ]), 
+  method = "BH"
+)
 
 ## Graph: quadrants
 all_Mv <- unlist(lapply(Method_final_df, '[[', "Mv"))
@@ -531,6 +474,10 @@ for(m in seq_along(Method_final_df)) {
 
 grid <- plot_grid(plotlist = gg_list, nrow = 2, ncol = 3)
 print(grid)
+
+#Exporting the Method_df list
+write_xlsx(Method_final_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Method_final_df.xlsx")
+
 
 
 ## Writing outputs

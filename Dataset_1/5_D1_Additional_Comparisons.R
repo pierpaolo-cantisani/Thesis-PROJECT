@@ -43,7 +43,9 @@ library(cowplot)
 # (sites vs log2FC): Do the number of DM sites in a gene correlate with its expression (making it more likely DE)?
 # (sites vs |log2FC|): Do the number of DM sites in a DE gene correlate with the magnitude of its differential expression?
 
-
+# All p-values within a method are BH-adjusted as a single family of 15 tests.
+# This includes 12 hypergeometric tests + 3 Spearman correlation tests.
+# Significance threshold: padj < 0.05.
 
 
 ### 0. Importing DE genes ###
@@ -225,36 +227,32 @@ for(METHOD in 1:5) {
   ##! Duplicates were not cleaned: this is wanted, as different sites on the same gene may have different trends.
   ##  In this way all information is kept. Therefore the analysis is for "site", not for "gene".
   
-  
-  
-  
-  ### 3: The more the sites are differentially methylated (in magnitude), the more the gene is up/down regulated? (Correlation between magnitude of methyl and up/down regulation) ###
-  
   ### 3: The more the sites are differentially methylated (in magnitude), the more the gene is up/down regulated? (Correlation between magnitude of methyl and up/down regulation) ###
   
   #Considering unique genes: meth will be the mean of the sites
   #Using all of the DM genes (in the universe), not the intersection (the intersection will be then highlighted in the graph)
   DM_univ_df <-  merge(DM_sites[, c("coord_key", "meth.diff", "SYMBOL")], RNAseq_universe[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
   
-  gene_level_df <- DM_univ_df %>%
-    group_by(SYMBOL) %>% summarise(
-      mean_meth = mean(meth.diff),
-      log2FoldChange = unique(log2FoldChange))
+  #Importing M-values
+  Scalar_M <- read.xlsx("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Method_final_df.xlsx", sheet = METHOD)
+
+  gene_level_df <- Scalar_M %>%
+      group_by(SYMBOL) %>% summarise(
+      mean_M = mean(Mv),
+      log2FC = unique(log2FC))
   
   #Intersected
   #all
-  all_cor <- cor.test(gene_level_df$mean_meth, gene_level_df$log2FoldChange, method = "spearman")
+  all_cor <- cor.test(gene_level_df$mean_M, gene_level_df$log2FC, method = "spearman")
   
   ## Graph: Scatter plot ##
-  magnitude_list[[METHOD]] <- ggplot(gene_level_df, aes(x = mean_meth, y = log2FoldChange)) +
+  magnitude_list[[METHOD]] <- ggplot(gene_level_df, aes(x = mean_M, y = log2FC)) +
     geom_point() +
     geom_point(data = gene_level_df[gene_level_df$SYMBOL %in% intersect_df$SYMBOL, ], color = "red") +
     geom_smooth(method = "lm") +
     labs(title = sprintf("M%d: Body methylation vs Expression", METHOD),
          x        = "Mean meth.diff per gene",
          y        = "log2FC")
-  
-  
   
   
   
@@ -282,16 +280,12 @@ for(METHOD in 1:5) {
   
   ## Graph: Probability of being DE depending on number of DM sites ##
   # Summary dataframe
-  cat(sprintf("\n  M%d - class(DM_num$SYMBOL): %s\n", METHOD, class(DM_num$SYMBOL)))
-  cat(sprintf("  Length of single SYMBOL filter: %d\n", 
-              length(DM_num$SYMBOL[DM_num$n_DM_sites < 2])))
-  
   single_DM <- DM_sites %>% filter(SYMBOL %in% DM_num$SYMBOL[DM_num$n_DM_sites < 2])
   single_DM_genes <- DM_num$SYMBOL[DM_num$n_DM_sites < 2]    # = 1 site
 
   single_intersect_genes <- setdiff(intersect_genes, multi_intersect_genes)
   dm_summary <- data.frame(
-    group    = c("All DM genes", "DM ∩ DE genes"),
+    group    = c("All DM genes", "DM%DE genes"),
     single   = c(length(single_DM_genes),  length(single_intersect_genes)),
     multi    = c(length(multi_DM_genes),   length(multi_intersect_genes))
   )
@@ -305,7 +299,7 @@ for(METHOD in 1:5) {
     mutate(
       total    = sum(n),
       pct      = n / total * 100,
-      group    = factor(group, levels = c("All DM genes", "DM ∩ DE genes")),
+      group    = factor(group, levels = c("All DM genes", "DM%DE genes")),
       dm_class = factor(dm_class,
                         levels = c("single", "multi"),
                         labels = c("1 DM site", "≥2 DM sites"))
@@ -338,7 +332,7 @@ for(METHOD in 1:5) {
     ) +
     labs(
       title    = sprintf("M%d: DM site multiplicity", METHOD),
-      subtitle = "All DM genes vs DM ∩ DE genes",
+      subtitle = "All DM genes vs DM%DE genes",
       x        = NULL,
       y        = "Percentage of genes"
     ) +
@@ -355,7 +349,7 @@ for(METHOD in 1:5) {
   
   ### 5: Correlation between number of DM sites and log2FC ###
   
-  ## Qui si considerano tutti i geni, non l'intersezione. Da capire se mi convince.
+  ## Qui si considerano tutti i geni, non l'intersezione.
   
   # Counting DM sites per gene
   #Using DM_num, called at the beginning of section 4
@@ -403,25 +397,57 @@ for(METHOD in 1:5) {
   scatter_list[[METHOD]] <- plot_grid(p_sites_fc_abs, p_sites_fc, nrow = 2, ncol = 1)
   
   
+  #Multiple test correction: before output
+  pvals_raw <- c(
+    hyp_intersect    = hyp_intersect,
+    hyp_up           = hyp_up,
+    hyp_DM_up        = hyp_DM_up,
+    hyp_fin_up       = hyp_fin_up,
+    hyp_down         = hyp_down,
+    hyp_DM_down      = hyp_DM_down,
+    hyp_fin_down     = hyp_fin_down,
+    hyp_up_hypo      = hyp_up_hypo,
+    hyp_down_hypo    = hyp_down_hypo,
+    hyp_up_hyper     = hyp_up_hyper,
+    hyp_down_hyper   = hyp_down_hyper,
+    hyp_multi        = hyp_multi,
+    all_cor_p        = all_cor$p.value,
+    sites_abs_fc_p   = sites_abs_fc_cor$p.value,
+    sites_fc_p       = sites_fc_cor$p.value
+  )
+  
+  # Applying BH
+  pvals_adj <- p.adjust(pvals_raw, method = "BH")
+  
   
   ##Final output data:
+  Data_list[[sprintf("M%d", METHOD)]] <- c(
+    pvals_adj["hyp_intersect"],
+    pvals_adj["hyp_up"], pvals_adj["hyp_DM_up"], pvals_adj["hyp_fin_up"],
+    pvals_adj["hyp_down"], pvals_adj["hyp_DM_down"], pvals_adj["hyp_fin_down"],
+    pvals_adj["hyp_up_hypo"], pvals_adj["hyp_down_hypo"],
+    pvals_adj["hyp_up_hyper"], pvals_adj["hyp_down_hyper"],
+    all_cor$estimate, pvals_adj["all_cor_p"],
+    length(multi_DM_genes), pvals_adj["hyp_multi"],
+    sites_abs_fc_cor$estimate, pvals_adj["sites_abs_fc_p"],
+    sites_fc_cor$estimate, pvals_adj["sites_fc_p"]
+  )
+}
   
-  Data_list[[sprintf("M%d", METHOD)]] <- c(hyp_intersect, hyp_up, hyp_DM_up, hyp_fin_up, hyp_down, hyp_DM_down, 
-                                           hyp_fin_down, hyp_up_hypo, hyp_down_hypo, hyp_up_hyper, hyp_down_hyper, 
-                                           all_cor$estimate, all_cor$p.value, length(multi_DM_genes), hyp_multi, sites_abs_fc_cor$estimate,
-                                           sites_abs_fc_cor$p.value, sites_fc_cor$estimate, sites_fc_cor$p.value)
-
-} 
 
 #Before output, to improve table visualization:
 options(scipen = 999)
 
 #Creating the Stats table
 final_df <- as.data.frame(Data_list)
-row.names(final_df) <- c("Sign of inters", "All DM up (p)", "DM ∩ DE DM up (p)", "M ∩ DE vs All DM up (p)", "All DM down (p)", 
-                         "DM ∩ DE DM down (p)", "M ∩ DE vs All DM down (p)", "Hypo-up (p)", "Hypo-down (p)", "Hyper-up (p)",
-                         "Hyper-down (p)", "meth Spear (rho)", "meth Spear (p)", "Multi DM genes", "Multi DM ∩ DE (p)",
-                         "sites vs |log2FC| (rho)", "sites vs |log2FC| (p)", "sites vs log2FC (rho)", "sites vs log2FC (p)")
+row.names(final_df) <- c("Sign of inters (padj)", 
+                         "All DM up (padj)", "DM ∩ DE DM up (padj)", "M ∩ DE vs All DM up (padj)",
+                         "All DM down (padj)", "DM ∩ DE DM down (padj)", "M ∩ DE vs All DM down (padj)",
+                         "Hypo-up (padj)", "Hypo-down (padj)", "Hyper-up (padj)", "Hyper-down (padj)",
+                         "meth Spear (rho)", "meth Spear (padj)", 
+                         "Multi DM genes", "Multi DM ∩ DE (padj)",
+                         "sites vs |log2FC| (rho)", "sites vs |log2FC| (padj)",
+                         "sites vs log2FC (rho)", "sites vs log2FC (padj)")
 
 #Importing old Stats table:
 Stats_table <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Stats_table.csv")
@@ -432,7 +458,7 @@ Stats_table$metric <- NULL
 #Merging: output
 Stats_table_final <- bind_rows(Stats_table, final_df)
 Stats_table_final$metric <- rownames(Stats_table_final)
-Stats_table_final <- Stats_table_final[ , c("metric", setdiff(names(Stats_table), "metric"))]  # Puts "metric" as first column
+Stats_table_final <- Stats_table_final[ , c("metric", setdiff(names(Stats_table_final), "metric"))]  # Puts "metric" as first column
 
 
 #Writing on file

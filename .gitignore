@@ -4,21 +4,30 @@ references/
 *quant_D2/
 NeuN/
 
-#Outputs and heavy files (except graphs)
-*.rds
-DE_results.csv
-RNAseq_universe.csv
+## Outputs and heavy files (except graphs)
+#Data files
 GSM*
 GSE*
 Metadata_from_Paper.xlsx
 *.bgz.tbi
 *.bgz
-stats_table.csv
 full_qc_report*
-WGBS Graphs D2.pdf
-M_CpG_matrix.csv
 Additional_f6_ST4.txt
-RNA-Seq Graphs*
+#Results heavy files
+DE_results.csv
+meth25p.csv
+DM_sites_Met*
+stats_table.csv
+RNAseq_universe.csv
+M_CpG_matrix.csv
+Method_final_df.xlsx
+*.rds
+!session_info*
+
+#Graphs
+*.pdf
+
 
 #R
 .Rhistory
+R_libraries*

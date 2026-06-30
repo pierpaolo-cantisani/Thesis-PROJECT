@@ -48,14 +48,16 @@ library(cowplot)
 # Significance threshold: padj < 0.05.
 
 
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
+
 ### 0. Importing DE genes ###
 #Importing RNA-Seq DE genes
-DE_results <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/DE_results.csv")
+DE_results <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
 ## Obtaining the universe N: 
 #Importing RNA-seq universe (all genes considered for the DESeq2 analysis)
-RNAseq_universe <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/RNAseq_universe.csv", col.names = c("SYMBOL", "log2FoldChange", "padj"))
+RNAseq_universe <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "RNAseq_universe.csv"), col.names = c("SYMBOL", "log2FoldChange", "padj"))
 
 ## Choosing "universe" as the RNAseq_universe. So that the METHOD's association can theorically connect to any of those genes.
 universe <- RNAseq_universe$SYMBOL
@@ -76,7 +78,7 @@ for(METHOD in 1:5) {
   ##### CODE START: ##### 
   
   #Importing DM METHOD lists:
-  DM_sites <- read.csv(sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met%d.csv", METHOD))
+  DM_sites <- read.csv(sprintf(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met%d.csv"), METHOD))
   DM_genes <- unique(DM_sites$SYMBOL)
   
   DM_genes_univ <- unique(intersect(DM_sites$SYMBOL, universe))
@@ -234,7 +236,7 @@ for(METHOD in 1:5) {
   DM_univ_df <-  merge(DM_sites[, c("coord_key", "meth.diff", "SYMBOL")], RNAseq_universe[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
   
   #Importing M-values
-  Scalar_M <- read.xlsx("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Method_final_df.xlsx", sheet = METHOD)
+  Scalar_M <- read.xlsx(file.path(PATH, "Dataset_1", "4_Integration_results", "Method_final_df.xlsx"), sheet = sprintf("M%d", METHOD))
 
   gene_level_df <- Scalar_M %>%
       group_by(SYMBOL) %>% summarise(
@@ -450,10 +452,12 @@ row.names(final_df) <- c("Sign of inters (padj)",
                          "sites vs log2FC (rho)", "sites vs log2FC (padj)")
 
 #Importing old Stats table:
-Stats_table <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Stats_table.csv")
+Stats_table <- read.csv(file.path(PATH, "Dataset_1", "4_Integration_results", "Stats_table.csv"))
 rownames(Stats_table) <- Stats_table$metric
 Stats_table$metric <- NULL
 
+#Sanity check:
+stopifnot(setequal(colnames(Stats_table), colnames(final_df)))
 
 #Merging: output
 Stats_table_final <- bind_rows(Stats_table, final_df)
@@ -462,11 +466,11 @@ Stats_table_final <- Stats_table_final[ , c("metric", setdiff(names(Stats_table_
 
 
 #Writing on file
-write.xlsx(Stats_table_final, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Stats_table_final.xlsx", rowNames = FALSE)
+write.xlsx(Stats_table_final, file.path(PATH, "Dataset_1", "4_Integration_results", "Stats_table_final.xlsx"), rowNames = FALSE)
 
 
 ##Plotting graphs:
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Additional_comparison D1.pdf", height = 10, width = 15)
+pdf(file.path(PATH, "Dataset_1", "4_Integration_results", "Additional_comparison D1.pdf"), height = 10, width = 15)
 
 plot_grid(plotlist = magnitude_list, nrow = 2, ncol= 3)
 plot_grid(plotlist = num_barplot_list, nrow = 2, ncol= 3)

@@ -142,7 +142,7 @@ M4 <- write_output_file(general_df, DM_sites_M4, 4)
 #####
 ##### METHOD 5: rGREAT (-5 kb, 1 kb) plus extension until nearest gene up to 1 MB in both directions #####
 
-TSS_map <- extendTSS(genes_GR, gene_id_type = "ENTREZ", 
+TSS_map <- extendTSS(annoData, gene_id_type = "ENTREZ", 
                      mode = "basalPlusExt", 
                      extend_from = "TSS", 
                      basal_upstream = 5000, 

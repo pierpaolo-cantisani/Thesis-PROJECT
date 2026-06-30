@@ -5,6 +5,7 @@ library(ggplot2)
 library(cowplot)
 library(writexl)
 
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 ### Razionale Analisi: 
 
@@ -24,22 +25,22 @@ library(writexl)
 #         PIP2 chiede se la direzione dell'effetto disease è concorde tra le due omiche.
 
 
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Base_comparison D1.pdf")
+pdf(file.path(PATH, "Dataset_1", "4_Integration_results", "Base_comparison D1.pdf"))
 
 ##### --- PIPELINE 0: Simple Intersection --- #####
 
 #Importing RNA-Seq DE genes
-sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/DE_results.csv")
+sign_DE <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
 sign_DE <- sign_DE %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
 
 #Importing BS-Seq DM sites
 M_list <- list()
-M_list[[1]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met1.csv")
-M_list[[2]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met2.csv")
-M_list[[3]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met3.csv")
-M_list[[4]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met4.csv")
-M_list[[5]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met5.csv")
+M_list[[1]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met1.csv"))
+M_list[[2]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met2.csv"))
+M_list[[3]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met3.csv"))
+M_list[[4]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met4.csv"))
+M_list[[5]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met5.csv"))
 
 
 inters_table <- sapply(seq_along(M_list), function(i) {
@@ -112,7 +113,7 @@ Upset_genes <- lapply(genes_by_region, function(g) {
 Upset_genes_df <- as.data.frame(Upset_genes, stringsAsFactors = FALSE, check.names = FALSE)
 colnames(Upset_genes_df) <- cate_names
 
-write_xlsx(Upset_genes_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Upset_genes.xlsx")
+write_xlsx(Upset_genes_df, file.path(PATH, "Dataset_1", "4_Integration_results", "Upset_genes.xlsx"))
 
 
 
@@ -163,17 +164,17 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
 ## Importing files
 
 #meth25p <- choice at the beginning
-dds <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/dds.rds")
-meth25p <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth25p.csv")
-sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/DE_results.csv")
+dds <- readRDS(file.path(PATH, "Dataset_1", "1_RNA-Seq", "dds.rds"))
+meth25p <- read.csv(file.path(PATH, "Dataset_1", "2_BS-Seq", "meth25p.csv"))
+sign_DE <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
 names(sign_DE)[names(sign_DE) == "hugo_symbol"] <- "SYMBOL"
 
 #This will be different for the different lists:
-M1_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met1.csv")
-M2_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met2.csv")
-M3_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met3.csv")
-M4_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met4.csv")
-M5_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met5.csv")
+M1_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met1.csv"))
+M2_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met2.csv"))
+M3_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met3.csv"))
+M4_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met4.csv"))
+M5_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met5.csv"))
 
 
 ##Methylation: Creating the DM matrix:
@@ -345,20 +346,20 @@ create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataf
 ### 1. Importing files and matrix/dataframes creation ###
 
 ##Importing files
-meth25p <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth25p.csv")
-rnaseq_all <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/RNAseq_universe.csv")
+meth25p <- read.csv(file.path(PATH, "Dataset_1", "2_BS-Seq", "meth25p.csv"))
+rnaseq_all <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "RNAseq_universe.csv"))
 rnaseq_all <- rnaseq_all %>% dplyr::rename("SYMBOL" = hugo_symbol)
 
 #sign DE genes will be needed later
-sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/DE_results.csv")
+sign_DE <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
 sign_DE <- sign_DE %>% dplyr::rename("SYMBOL" = hugo_symbol)
 
 #This will be different for the different lists:
-M1_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met1.csv")
-M2_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met2.csv")
-M3_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met3.csv")
-M4_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met4.csv")
-M5_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met5.csv")
+M1_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met1.csv"))
+M2_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met2.csv"))
+M3_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met3.csv"))
+M4_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met4.csv"))
+M5_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met5.csv"))
 
 
 ##Methylation: Creating the DM matrix:
@@ -422,10 +423,18 @@ names(Method_final_df) <- paste0("M", seq_along(Method_final_df))
 
 # How many expected association does each method find? 
 quadrant_enrichment <- sapply(Method_final_df, function(df) {
-  q2 <- sum(df$Mv < 0 & df$log2FC > 0)  # hypomethylated + up = expected
-  q4 <- sum(df$Mv > 0 & df$log2FC < 0)  # hypermethylated + down = expected
-  q1 <- sum(df$Mv > 0 & df$log2FC > 0)
-  q3 <- sum(df$Mv < 0 & df$log2FC < 0)
+  gene_df <- df %>%
+    group_by(SYMBOL) %>%
+    summarise(Mv_med = median(Mv),
+              log2FC = unique(log2FC)[1],
+              .groups = "drop") %>%
+    filter(Mv_med != 0, log2FC != 0)
+  
+  q2 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC > 0)  # hypo + up
+  q4 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC < 0)  # hyper + down
+  q1 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC > 0)
+  q3 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC < 0)
+  
   
   expected_total <- q2 + q4
   unexpected_total <- q1 + q3
@@ -476,7 +485,7 @@ grid <- plot_grid(plotlist = gg_list, nrow = 2, ncol = 3)
 print(grid)
 
 #Exporting the Method_df list
-write_xlsx(Method_final_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Method_final_df.xlsx")
+write_xlsx(Method_final_df, file.path(PATH, "Dataset_1", "4_Integration_results", "Method_final_df.xlsx"))
 
 
 
@@ -484,6 +493,6 @@ write_xlsx(Method_final_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_I
 Stats_table <- rbind(inters_table, Pip1_table, quadrant_table)
 Stats_table$metric <- rownames(Stats_table)
 Stats_table <- Stats_table[ , c("metric", setdiff(names(Stats_table), "metric"))]  # Puts "metric" as first column
-write.csv(Stats_table, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Stats_table.csv", row.names = FALSE)
+write.csv(Stats_table, file.path(PATH, "Dataset_1", "4_Integration_results", "Stats_table.csv"), row.names = FALSE)
 
 dev.off()

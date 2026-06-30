@@ -12,9 +12,10 @@ library(openxlsx)
 
 ##! Metodi 1, 2 e 5 sono uguali. E metodi 3 e 4 sono sottoinsiemi di 1/2/5. Poco interessante
 
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 #Importing DE genes
-DE_results <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/1_RNA-Seq/DE_results.csv")
+DE_results <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
 #Ref
@@ -28,7 +29,7 @@ Stats_region <- list()
 for(METHOD in 1:5){
   
   #Importing association df
-  DM_sites <- read.csv(sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/3_Benchmark/DM_sites_Met%d.csv", METHOD))
+  DM_sites <- read.csv(sprintf(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met%d.csv"), METHOD))
   
   #Converting to GRanges
   DM_GR <- makeGRangesFromDataFrame(DM_sites,
@@ -240,7 +241,7 @@ for(METHOD in 1:5){
 }
 
 #Graph Output
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Region_analysis_ChIPseeker D1.pdf", height = 10, width = 15)
+pdf(file.path(PATH, "Dataset_1", "4_Integration_results", "Region_analysis_ChIPseeker D1.pdf"), height = 10, width = 15)
 plot_grid(plotlist = graph_list, ncol = 2)
 dev.off()
 
@@ -251,4 +252,4 @@ Stats_df$metric <- rownames(Stats_df)
 Stats_df <- Stats_df[ , c("metric", setdiff(names(Stats_df), "metric"))]  # Puts "metric" as first column
 
 #Output
-write.xlsx(Stats_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/4_Integration_results/Stats_table_region.xlsx", rowNames = FALSE)
+write.xlsx(Stats_df, file.path(PATH, "Dataset_1", "4_Integration_results", "Stats_table_region.xlsx"), rowNames = FALSE)

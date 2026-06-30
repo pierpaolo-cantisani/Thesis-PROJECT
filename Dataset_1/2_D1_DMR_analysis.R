@@ -5,14 +5,17 @@ library(rtracklayer)
 library(karyoploteR)
 
 
-setwd("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq")
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/WGBS Graphs D1.pdf", width = 12, height = 8)
+pdf(file.path(PATH, "Dataset_1", "2_BS-Seq", "WGBS Graphs D1.pdf"), width = 12, height = 8)
 
 ### 1. File downloading, and MethylKit object building ###
 
 #The data files are not in a typical bismark output format, but they were processed and simplified.
 #Files only have 4 columns: "chromosome", "position", "counts M", "counts M+U (coverage)".
+
+#Setting file directory
+setwd(file.path(PATH, "Dataset_1", "2_BS-Seq"))
 
 #names of the import files
 files <- c(
@@ -109,7 +112,7 @@ myDiff <- calculateDiffMeth(meth,
                             test = "F")
 
 # Diff Analysis was done on another machine. Then imported:
-#myDiff <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/myDiff.rds")
+myDiff <- readRDS(file.path(PATH, "Dataset_1", "2_BS-Seq", "myDiff.rds"))
 
 
 ##Finally: selecting differentially methylated bases:
@@ -137,7 +140,7 @@ ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
                                      myDiff_df_plot$qvalue < 0.01 & 
                                      abs(myDiff_df_plot$meth.diff) > 25, ], color = "red") +
   theme_minimal() +
-  labs(title = "Volcano plot: DM sites", x = "meth.diff", y = "-log10(adj pvalue)")
+  labs(title = "Volcano plot: D1 Differential methylation", x = "meth.diff", y = "-log10(adj pvalue)")
 
 
 
@@ -149,9 +152,9 @@ ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
 #Doing this with liftOver()
 
 #Download chain and meth files
-chain <- import.chain("C:/Users/pierp/Desktop/THESIS PROJECT/references/hg19ToHg38.over.chain")
+chain <- import.chain(file.path(PATH, "references", "hg19ToHg38.over.chain"))
 #Also this was imported from another machine
-#meth <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth.rds")
+meth <- readRDS(file.path(PATH, "Dataset_1", "2_BS-Seq", "meth.rds"))
 
 dm_hg19_GR <- as(myDiff25p, "GRanges")
 meth_dm <- selectByOverlap(meth, dm_hg19_GR)
@@ -170,7 +173,7 @@ meth_DM_hg38 <- unlist(liftOver(meth_dm_GR, chain))
 meth_DM_hg38_df <- as.data.frame(meth_DM_hg38)
 meth_DM_hg38_df$coord_key <- paste(meth_DM_hg38_df$seqnames, meth_DM_hg38_df$start, sep="_")
 
-write.csv(meth_DM_hg38_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/meth25p.csv", row.names = FALSE)
+write.csv(meth_DM_hg38_df, file.path(PATH, "Dataset_1", "2_BS-Seq", "meth25p.csv"), row.names = FALSE)
 
 
 ## Then, liftover for myDiff25p:
@@ -185,14 +188,14 @@ stopifnot(setequal(meth_DM_hg38_df$coord_key, myDiff25p_GR_hg38$coord_key))
 
 
 #Exporting DM sites:
-saveRDS(myDiff25p_GR_hg38, file = "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/myDiff25p_GR_hg38.rds")
+saveRDS(myDiff25p_GR_hg38, file = file.path(PATH, "Dataset_1", "2_BS-Seq", "myDiff25p_GR_hg38.rds"))
 
 dev.off()
 
 
 
 #Karyo visualization
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_1/2_BS-Seq/Chr DM distribution D1.pdf", width = 12, height = 8)
+pdf(file.path(PATH, "Dataset_1", "2_BS-Seq", "Chr DM distribution D1.pdf"), width = 12, height = 8)
 
 ## Graph: Position of methylation sites on all chromosomes
 ## Checking if their position is clusterized around centromeres. Then considering filtering

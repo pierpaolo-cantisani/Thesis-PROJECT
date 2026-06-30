@@ -6,13 +6,13 @@ library(matrixStats)
 library(pheatmap)
 
 
-setwd("C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_1/1_RNA-Seq")
-pdf("C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_1/1_RNA-Seq/RNA-Seq Graphs D1.pdf", height = 10, width = 15)
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
+pdf(file.path(PATH, "Dataset_1", "1_RNA-Seq", "RNA-Seq Graphs D1.pdf"), height = 10, width = 15)
 
 ### 1. File and reference download ###
 
 ## Downloading the reference: hg38 version 49
-gtf <- import("C:/Users/pierp/Desktop/Thesis PROJECT/references/gencode.v49.annotation.gtf.gz")
+gtf <- import(file.path(PATH, "references", "gencode.v49.annotation.gtf.gz"))
 #mapping ensembl id and hugo symbols
 gtf_genes <- gtf[gtf$type == "gene"]
 gene_map <- data.frame(ensembl_id = gtf_genes$gene_id,
@@ -36,6 +36,8 @@ tx2gene <- data.frame(transcript = gtf_tx$transcript_id,
 #Removing duplicates (if any)
 tx2gene <- distinct(tx2gene)
 
+#Setting file directory
+setwd(file.path(PATH, "Dataset_1", "1_RNA-Seq"))
 
 ## Downloading the count files
 files <- c("rep_1_TB_quant/quant.sf", "rep_1_NI_quant/quant.sf", "rep_2_TB_quant/quant.sf",
@@ -92,7 +94,7 @@ new_names <- make.unique(new_names)      #make.unique will add ".1", ".2", etc..
 rownames(dds_exp) <- new_names
 
 ##Export
-saveRDS(dds_exp, file = "C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_1/1_RNA-Seq/dds.rds")
+saveRDS(dds_exp, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "dds.rds"))
 
 
 
@@ -125,7 +127,8 @@ ggplot(pca_df, aes(x = PC1, y = PC2, shape = replicate, color = infection)) +
   labs(title = "Explorative analysis - PCA",
        x = paste0("PCA1 (", round(100 * summary(pca)$importance[2,1], 1), "% of the variance)"),    #Title and labels
        y = paste0("PCA2 (", round(100 * summary(pca)$importance[2,2], 1), "% of the variance)")) +
-  theme_bw() +                                                                                      #Setting white background
+  theme_bw() +      
+  geom_line(aes(group = replicate), color = "grey70", alpha = 0.4) + #Setting white background
   theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5)) +                   #Formatting title
   scale_shape_manual(values= c(15:19, 8)) +                                                         #Setting points shapes. From 15 on shapes are full inside
   scale_color_manual(values = c("CTRL" = "red", "TB" ="darkblue"))                                     #Adding legend
@@ -133,7 +136,13 @@ ggplot(pca_df, aes(x = PC1, y = PC2, shape = replicate, color = infection)) +
 
 ## Heatmap
 #Again using the counts after transposition: counts_norm_t
-counts_norm_matrix <- scale(counts_norm_t)
+#Filtering: Heatmap is too heavy
+g_vars <- rowVars(counts_norm) 
+counts_norm_filt <- counts_norm[order(g_vars, decreasing=TRUE)[1:1000], ]
+
+#now preparing data
+counts_norm_t_filt <- t(counts_norm_filt)
+counts_norm_matrix <- scale(counts_norm_t_filt)
 heatmap_matrix <- t(counts_norm_matrix)
 
 Conditions <- data.frame(
@@ -182,8 +191,6 @@ ggplot(counts_norm_long, aes(x = Sample, y = expr)) +
 #Considering the contrast on the condition: infection
 DE_res <- as.data.frame(results(dds, contrast = c("infection", "TB", "CTRL")))
 #Mapping the gene names as HUGO symbols
-DE_res$ENSEMBL <- row.names(DE_res)
-
 DE_res$ENSEMBL <- sub("\\.\\d+$", "", rownames(DE_res)) #Stripping .1, .2 etc..
 DE_res <- merge(DE_res, gene_map,
                 by.x = "ENSEMBL",
@@ -198,12 +205,12 @@ DE_res <- DE_res %>%
 
 sign_DE_res <- DE_res %>% filter(padj < 0.05 & abs(log2FoldChange) > 1)
 #Exporting results
-write.csv(sign_DE_res, "C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_1/1_RNA-Seq/DE_results.csv", row.names = FALSE)
+write.csv(sign_DE_res, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"), row.names = FALSE)
 
 
 #Exporting the universe
 RNAseq_universe <- DE_res[, c("hugo_symbol", "log2FoldChange", "padj")]
-write.csv(RNAseq_universe, file = "C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_1/1_RNA-Seq/RNAseq_universe.csv", row.names = FALSE)
+write.csv(RNAseq_universe, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "RNAseq_universe.csv"), row.names = FALSE)
 
 
 

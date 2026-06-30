@@ -63,6 +63,9 @@ universe <- RNAseq_universe$SYMBOL
 # Final genes ready for comparison are:
 DE_genes <- unique(DE_results$SYMBOL)
 
+#And DM sites
+Scalar_M <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Method_final_df.rds")
+
 
 #Output data for each method will be temporarily inserted in this list. Same for Graph outputs.
 Data_list <- list()
@@ -237,9 +240,7 @@ for(METHOD in 1:5) {
   DM_univ_df <-  merge(DM_sites[, c("coord_key", "meth.diff", "SYMBOL")], RNAseq_universe[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
   
   #Importing M-values
-  Scalar_M <- read.xlsx("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Method_final_df.xlsx", sheet = METHOD)
-  
-  gene_level_df <- Scalar_M %>%
+  gene_level_df <- Scalar_M[[METHOD]] %>%
     group_by(SYMBOL) %>% summarise(
       mean_M = mean(Mv),
       log2FC = unique(log2FC))
@@ -460,6 +461,8 @@ Stats_table <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integ
 rownames(Stats_table) <- Stats_table$metric
 Stats_table$metric <- NULL
 
+#Sanity check:
+stopifnot(setequal(colnames(Stats_table), colnames(final_df)))
 
 #Merging: output
 Stats_table_final <- bind_rows(Stats_table, final_df)

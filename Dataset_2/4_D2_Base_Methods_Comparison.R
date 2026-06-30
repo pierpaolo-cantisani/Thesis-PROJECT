@@ -42,33 +42,34 @@ M_list[[4]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Bench
 M_list[[5]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met5.csv")
 
 
+# Pulizia centralizzata: strip ".1", ".2" + unique
+clean_symbols <- function(x) unique(sub("\\.\\d+$", "", x))
+
+M_genes_unique  <- lapply(M_list, function(x) clean_symbols(x$SYMBOL))
+DE_genes_unique <- clean_symbols(sign_DE$SYMBOL)
+names(M_genes_unique) <- paste0("M", seq_along(M_list))
+names(M_list)         <- paste0("M", seq_along(M_list))
+
 inters_table <- sapply(seq_along(M_list), function(i) {
-  M_inters <- intersect(sign_DE$SYMBOL, M_list[[i]]$SYMBOL)
-  c("tot genes" = as.numeric(length(unique(M_list[[i]]$SYMBOL))),
-    "inters genes" = as.numeric(length(M_inters)),
-    "precision" = as.numeric(length(M_inters)/length(unique(M_list[[i]]$SYMBOL))),
-    "unique genes" =  length(setdiff(M_list[[i]]$SYMBOL, 
-                                     unlist(lapply(M_list[-i], function(x) x$SYMBOL)))),
-    "Recall genes" = length(unique(M_inters)) / nrow(sign_DE)
+  M_inters <- intersect(DE_genes_unique, M_genes_unique[[i]])
+  
+  others        <- unique(unlist(M_genes_unique[-i]))
+  unique_to_i   <- setdiff(M_genes_unique[[i]], others)
+  
+  c("tot genes"    = length(M_genes_unique[[i]]),
+    "inters genes" = length(M_inters),
+    "precision"    = length(M_inters) / length(M_genes_unique[[i]]),
+    "unique genes" = length(unique_to_i),
+    "Recall genes" = length(M_inters) / length(DE_genes_unique)
   )
 })
 inters_table <- as.data.frame(inters_table)
 colnames(inters_table) <- paste0("M", seq_along(M_list))
-names(M_list) <- paste0("M", seq_along(M_list))
 
-
-##Upset plot pre-Statistic
-M_symbol_list <- lapply(M_list, function(x) {
-  s <- x$SYMBOL
-  s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
-  unique(s)
-})
-
-#Plot intersection
-upset(fromList(M_symbol_list),
+## Upset: usa direttamente M_genes_unique (già pulito)
+upset(fromList(M_genes_unique),
       mainbar.y.label = "Intersecting genes - Pre-statistic",
-      sets.x.label = "Tot genes per method")
-## Last column from this Upset plot shows CORE genes
+      sets.x.label    = "Tot genes per method")
 
 
 
@@ -115,7 +116,6 @@ colnames(Upset_genes_df) <- cate_names
 write_xlsx(Upset_genes_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Upset_genes.xlsx")
 
 
-
 #####
 ##### --- PIPELINE 1: Vector Comparison --- #####
 
@@ -128,6 +128,7 @@ write_xlsx(Upset_genes_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_In
 create_DE_matrix <- function(symbols, expr_matrix, DE_symbols) {
   #Selecting only genes that are also DE: intersection
   symbols <- symbols[symbols %in% DE_symbols]                    #Comment this to see the case without intersection (Without this line the intersection DM-DE is not done). Substitute with: symbols <- symbols[symbols %in% rownames(expr_matrix)]
+  symbols <- symbols[symbols %in% row.names(expr_matrix)]
   #Filtering
   Matrix_expr <- expr_matrix[symbols, , drop = FALSE]
   #Changing col names (rimuovo prefisso "S")
@@ -267,7 +268,7 @@ names(Spear_padj_list) <- paste0("M", seq_along(Matrix_exp))
 
 
 
-### 4. Visualizations for METHOD COMPARISONS ###
+### 3. Visualizations for METHOD COMPARISONS ###
 
 ## Identifying unique/intersecting/common genes to all methods ##
 
@@ -300,52 +301,16 @@ ggplot(df_Spear, aes(x = rho, fill = method)) +
   theme_minimal()
 
 
-
-#2.2: Rho vs p-value
-df_Spear <- bind_rows(Spear_res_list, .id = "method")
-gg_list <- list()
-Methods <- unique(df_Spear$method)
-
-#Calculating limit for the graph
-min_p_obs <- min(df_Spear$pvalue[df_Spear$pvalue > 0], na.rm = TRUE)
-df_Spear$pvalue_plot <- pmax(df_Spear$pvalue, min_p_obs / 10)
-
-y_max <- max(-log10(df_Spear$pvalue_plot), na.rm = TRUE)
-y_max <- y_max * 1.05
-
-for(j in Methods) {
-  df_temp <- df_Spear %>% filter(method == j)
-  
-  gg_list[[j]] <- ggplot(df_temp, aes(x = rho, y = -log10(pvalue_plot))) +
-    geom_point(alpha = 0.5) +
-    geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
-    geom_point(data = df_temp[df_temp$padj < 0.05, ], color = "red") +
-    coord_cartesian(xlim = c(-1, 1), ylim = c(0, y_max)) +
-    theme_minimal() +
-    labs(title = sprintf("PIP 1 - Volcano plot Spearman: %s", j), x = "Rho (Spearman)", y = "-log10(adj pvalue)")
-}
-grid <- plot_grid(plotlist = gg_list, nrow = 2, ncol = 3)
-print(grid)
-
-
-### 3) Percentage of significant and unique/different genes ###
+### 2) Percentage of significant and unique/different genes ###
 strip_suffix <- function(x) unique(sub("\\.\\d+$", "", x))
 
 compare_table <- data.frame(
-  "Method" = names(lm_res_list),
+  "Method" = names(Spear_res_list),
   "Tot associations - intersection" = sapply(seq_along(Matrix_Mval), function(j) {
     nrow(Matrix_Mval[[j]])
   }),
-  "Perc sig lm" = sapply(seq_along(sign_padj_list), function(i) {
-    length(sign_padj_list[[i]]$padj)/length(lm_res_list[[i]]$padj)
-  }),
   "Perc sig Spearman" = sapply(seq_along(Spear_padj_list), function(i) {
     length(Spear_padj_list[[i]]$padj)/length(Spear_res_list[[i]]$padj)
-  }),
-  "Perc unique sig lm" = sapply(seq_along(sign_padj_list), function(i) {
-    unique <- setdiff(lm_res_list[[i]]$SYMBOL, unlist(lapply(lm_res_list[-i], function(x) x$SYMBOL)))
-    unique_sig <- setdiff(sign_padj_list[[i]]$SYMBOL, unlist(lapply(sign_padj_list[-i], function(x) x$SYMBOL)))
-    length(unique_sig)/length(unique)
   }),
   "Perc unique sig Spearman" = sapply(seq_along(Spear_padj_list), function(i) {
     unique_sig <- setdiff(strip_suffix(Spear_padj_list[[i]]$SYMBOL),
@@ -460,15 +425,24 @@ names(Method_final_df) <- paste0("M", seq_along(Method_final_df))
 
 # How many expected association does each method find? 
 quadrant_enrichment <- sapply(Method_final_df, function(df) {
-  q2 <- sum(df$Mv < 0 & df$log2FC > 0)  # hypomethylated + up = expected
-  q4 <- sum(df$Mv > 0 & df$log2FC < 0)  # hypermethylated + down = expected
-  q1 <- sum(df$Mv > 0 & df$log2FC > 0)
-  q3 <- sum(df$Mv < 0 & df$log2FC < 0)
+  gene_df <- df %>%
+    group_by(SYMBOL) %>%
+    summarise(Mv_med = median(Mv),
+              log2FC = unique(log2FC)[1],
+              .groups = "drop") %>%
+    filter(Mv_med != 0, log2FC != 0)
+  
+  q2 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC > 0)  # hypo + up
+  q4 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC < 0)  # hyper + down
+  q1 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC > 0)
+  q3 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC < 0)
+
   
   expected_total <- q2 + q4
   unexpected_total <- q1 + q3
   
   #And statistics: Binomial test: H0 = 50/50 split, H1 = expected > unexpected
+
   p_bin_test <- binom.test(expected_total, expected_total + unexpected_total, p = 0.5, alternative = "greater")$p.value
   
   #This next one (expected_perc) is the fundamental metric: the % of points in the expected quadrants.
@@ -483,6 +457,7 @@ quadrant_table["pvalue_quadrants_BH", ] <- p.adjust(
   as.numeric(quadrant_table["pvalue_quadrants", ]), 
   method = "BH"
 )
+
 
 ## Graph: quadrants
 all_Mv <- unlist(lapply(Method_final_df, '[[', "Mv"))
@@ -509,10 +484,12 @@ for(m in seq_along(Method_final_df)) {
 }
 
 grid <- plot_grid(plotlist = gg_list, nrow = 2, ncol = 3)
+pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Base D2.pdf", height = 10, width = 15)
 print(grid)
+dev.off()
 
 #Exporting the Method_df list
-write_xlsx(Method_final_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Method_final_df.xlsx")
+saveRDS(Method_final_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Method_final_df.rds")
 
 ## Writing outputs
 Stats_table <- rbind(inters_table, Pip1_table, quadrant_table)

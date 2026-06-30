@@ -239,7 +239,7 @@ for(METHOD in 1:5) {
   DM_univ_df <-  merge(DM_sites[, c("coord_key", "deltaB", "SYMBOL")], RNAseq_universe[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
   
   #Importing M-values
-  Scalar_M <- read.xlsx("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Method_final_df.xlsx", sheet = METHOD)
+  Scalar_M <- read.xlsx("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Method_final_df.xlsx", sheet = sprintf("M%d", METHOD))
   
   gene_level_df <- Scalar_M %>%
     group_by(SYMBOL) %>% summarise(
@@ -462,6 +462,8 @@ Stats_table <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integ
 rownames(Stats_table) <- Stats_table$metric
 Stats_table$metric <- NULL
 
+#Sanity check:
+stopifnot(setequal(colnames(Stats_table), colnames(final_df)))
 
 #Merging: output
 Stats_table_final <- bind_rows(Stats_table, final_df)

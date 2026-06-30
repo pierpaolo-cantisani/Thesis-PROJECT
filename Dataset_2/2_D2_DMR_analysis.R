@@ -2,17 +2,12 @@ library(data.table)
 library(methylKit)
 library(matrixStats)
 library(ggplot2)
-library(org.Hs.eg.db)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
-library(GenomeInfoDb)
-library(ChIPseeker)
 library(rtracklayer)
-library(dplyr)
 library(karyoploteR)
 
-#setwd("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq")
 
-#pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq D2.pdf", width = 12, height = 8)
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
+#pdf(file.path(PATH, "Dataset_2", "2_BS-Seq", "WGBS Graphs D2.pdf"), width = 12, height = 8)
 
 
 
@@ -24,41 +19,42 @@ library(karyoploteR)
 #names of the import files
 files <- c(
   # Olig2 Control (17)
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877183_1524_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877231_1525_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877219_1527_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877216_1532_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877220_1536_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877217_1539_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877222_1541_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877177_3545_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877184_3586_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877229_3590_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877235_3602_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877212_4615_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877238_AN03398_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877214_AN05483_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877218_AN10090_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877239_AN15240_Olig2_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/olig2/GSM2877240_AN16799_Olig2_CpG_WGBS.txt.gz",
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877183_1524_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877231_1525_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877219_1527_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877216_1532_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877220_1536_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877217_1539_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877222_1541_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877177_3545_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877184_3586_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877229_3590_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877235_3602_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877212_4615_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877238_AN03398_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877214_AN05483_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877218_AN10090_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877239_AN15240_Olig2_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877240_AN16799_Olig2_CpG_WGBS.txt.gz"),
+  
   # NeuN Control (17)
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877174_1524_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877198_1525_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877200_1527_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877201_1532_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877202_1536_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877204_1539_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877205_1541_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877176_3545_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877178_3586_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877228_3590_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877206_3602_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877186_4615_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877208_AN03398_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877213_AN05483_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877215_AN10090_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877209_AN15240_NeuN_CpG_WGBS.txt.gz",
-  "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/neun/GSM2877210_AN16799_NeuN_CpG_WGBS.txt.gz"
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877174_1524_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877198_1525_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877200_1527_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877201_1532_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877202_1536_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877204_1539_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877205_1541_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877176_3545_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877178_3586_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877228_3590_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877206_3602_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877186_4615_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877208_AN03398_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877213_AN05483_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877215_AN10090_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877209_AN15240_NeuN_CpG_WGBS.txt.gz"),
+  file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877210_AN16799_NeuN_CpG_WGBS.txt.gz")
 )
 
 # Naming samples:
@@ -211,49 +207,64 @@ covariates <- data.frame(donor = factor(metadata$donor, levels = 1:17))
 myDiff <- calculateDiffMeth(meth,
                             covariates = covariates,
                             overdispersion = "MN",
-                            test = "Chisq",           #With correction the default is the F test: must force this for the comparison
+                            test = "F",
                             save.db = TRUE,
                             suffix = "diff")            
 
 
 
+### !!! From this point on, moved to another work station. Files were inserted in path: file.path(PATH, "Dataset_2", "2_BS-Seq") ###
+
 
 ##Reading
-myDiff <- readMethylDB("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/methylDiff_united_diff.txt.bgz")
+myDiff <- readMethylDB(file.path(PATH, "Dataset_2", "2_BS-Seq", "methylDiff_united_diff.txt.bgz"))
 
 
 ##Finally: selecting differentially methylated bases:
 #get all differentially methylated bases
-myDiff25p=getMethylDiff(myDiff, difference=50, qvalue=0.01, suffix = "25p")
-myDiff25p_df <- data.frame(as(myDiff25p, "GRanges"))
+myDiff25p=getMethylDiff(myDiff, difference=25, qvalue=0.01, suffix = "25p")
+#myDiff25p_df <- data.frame(as(myDiff25p, "GRanges"))
 #get yper and hypo-only DM
-#myDiff25p.hyper=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hyper", suffix = "25p_hyper")
-#myDiff25p.hypo=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hypo", suffix = "25p_hypo")
-
-#myDiff25_df <- data.frame(as(myDiff25p, "GRanges"))
+myDiff25p.hyper=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hyper", suffix = "25p_hyper")
+myDiff25p.hypo=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hypo", suffix = "25p_hypo")
 
 
-##Volcano plot
-# myDiff_df <- as.data.frame(as(myDiff, "GRanges"))
+#subsample
+SUBSAMPLE_N <- 1000
+set.seed(42)
+
+## Volcano plot
+myDiff_df <- as.data.frame(as(myDiff, "GRanges"))
 # #Too many sites for the plot. Filtering high qvalue and low meth.diff values:
-# myDiff_df_plot <- myDiff_df[!is.na(myDiff_df$qvalue) & 
-#                                   myDiff_df$qvalue < 0.6 & 
-#                                   abs(myDiff_df$meth.diff) > 2, ]
-# 
-# 
-# ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
-#   geom_point(alpha = 0.5) +
-#   geom_hline(yintercept = -log10(0.01), linetype = "dashed", color = "blue") +
-#   geom_vline(xintercept = c(-25, 25), linetype = "dashed", color = "blue") +
-#   geom_point(data = myDiff_df_plot[!is.na(myDiff_df_plot$qvalue) & 
-#                                      myDiff_df_plot$qvalue < 0.01 & 
-#                                      abs(myDiff_df_plot$meth.diff) > 25, ], color = "red") +
-#   theme_minimal() +
-#   labs(title = "Volcano plot: infection", x = "meth.diff", y = "-log10(adj pvalue)")
+myDiff_df_plot <- myDiff_df[!is.na(myDiff_df$qvalue) & 
+                              myDiff_df$qvalue < 0.4 & 
+                              abs(myDiff_df$meth.diff) > 4, ]
+
+# Subsample del totale (significativi inclusi)
+if (nrow(myDiff_df_plot) > SUBSAMPLE_N) {
+  myDiff_df_plot <- myDiff_df_plot[sample(nrow(myDiff_df_plot), SUBSAMPLE_N), ]
+}
+
+# Riordina: significativi in coda → disegnati sopra
+is_sig <- myDiff_df_plot$qvalue < 0.01 & abs(myDiff_df_plot$meth.diff) > 25
+myDiff_df_plot <- rbind(myDiff_df_plot[!is_sig, ], myDiff_df_plot[is_sig, ])
+df_sig <- myDiff_df_plot[myDiff_df_plot$qvalue < 0.01 &
+                           abs(myDiff_df_plot$meth.diff) > 25, ]
+
+gg <- ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = -log10(0.01), linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = c(-25, 25), linetype = "dashed", color = "blue") +
+  geom_point(data = df_sig, color = "red") +
+  theme_minimal() +
+  labs(title = sprintf("Volcano plot: D2 Differential methylation (n=%d shown, %d sig)",
+                       nrow(myDiff_df_plot), nrow(df_sig)),
+       x = "meth.diff", y = "-log10(adj pvalue)")
+#print(gg)
 
 
 
-### 4. Coordinate conversion, annotation and export of the universe and DM sites ###
+### 4. Coordinate conversion, annotation and export of DM sites ###
 
 ##Liftover
 ## Before doing the annotation, it is important to note that the methyl calling was obtained with the h19 genome
@@ -261,8 +272,8 @@ myDiff25p_df <- data.frame(as(myDiff25p, "GRanges"))
 #Doing this with liftOver()
 
 #Download chain and meth files
-chain <- import.chain("C:/Users/pierp/Desktop/THESIS PROJECT/references/hg19ToHg38.over.chain")
-meth <- readMethylDB("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/methylBase_united.txt.bgz")
+chain <- import.chain(file.path(PATH, "references", "hg19ToHg38.over.chain"))
+meth <- readMethylDB(file.path(PATH, "Dataset_2", "2_BS-Seq", "methylBase_united.txt.bgz"))
 
 dm_hg19_GR <- as(myDiff25p, "GRanges")
 meth_dm <- selectByOverlap(meth, dm_hg19_GR)
@@ -280,7 +291,7 @@ meth_DM_hg38 <- unlist(liftOver(meth_dm_GR, chain))
 #Now exporting
 meth_DM_hg38_df <- as.data.frame(meth_DM_hg38)
 meth_DM_hg38_df$coord_key <- paste(meth_DM_hg38_df$seqnames, meth_DM_hg38_df$start, sep="_")
-write.csv(meth_DM_hg38_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/meth25p.csv", row.names = FALSE)
+write.csv(meth_DM_hg38_df, file.path(PATH, "Dataset_2", "2_BS-Seq", "meth25p.csv"), row.names = FALSE)
 
 
 ## Then, liftover for myDiff25p:
@@ -291,14 +302,14 @@ myDiff25p_GR_hg38 <- unlist(liftOver(myDiff25p_GR, chain))
 myDiff25p_GR_hg38$coord_key <- paste(seqnames(myDiff25p_GR_hg38), start(myDiff25p_GR_hg38), sep = "_")
 
 #Exporting DM sites:
-saveRDS(myDiff25p_GR_hg38, file = "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/myDiff25p_GR_hg38.rds")
+saveRDS(myDiff25p_GR_hg38, file = file.path(PATH, "Dataset_2", "2_BS-Seq", "myDiff25p_GR_hg38.rds"))
 
 #dev.off()
 
 
 
 #Karyo visualization
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/Chr DM distribution D2.pdf", width = 12, height = 8)
+pdf(file.path(PATH, "Dataset_2", "2_BS-Seq", "Chr DM distribution D2.pdf"), width = 12, height = 8)
 
 ## Graph: Position of methylation sites on all chromosomes
 ## Checking if their position is clusterized around centromeres. Then considering filtering

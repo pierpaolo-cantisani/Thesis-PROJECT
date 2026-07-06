@@ -2,12 +2,14 @@
 references/
 *quant/
 *quant_D2/
-NeuN/
+ML_eQTM_model/
+.vscode/
 
 ## Outputs and heavy files (except graphs)
 #Data files
 GSM*
 GSE*
+*.tar
 Metadata_from_Paper.xlsx
 *.bgz.tbi
 *.bgz
@@ -27,7 +29,10 @@ Method_final_df.xlsx
 #Graphs
 *.pdf
 
-
 #R
 .Rhistory
 R_libraries*
+
+#ML model
+model1.pkl
+model1_test_data.tsv

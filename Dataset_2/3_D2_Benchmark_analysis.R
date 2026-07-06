@@ -74,7 +74,9 @@ region_type <- apply(members, 1, function(m) {
 tss_df$region_type <- region_type
 tss_df <- tss_df %>% dplyr::rename(distanceToTSS = dist.to.feature, 
                                    SYMBOL = gene.symbol)
-DM_sites_M1 <- data.frame(tss_df[, c("region_type", "SYMBOL")])
+tss_df$distanceToTSS <- abs(tss_df$distanceToTSS)
+
+DM_sites_M1 <- data.frame(tss_df[, c("region_type", "SYMBOL", "distanceToTSS")])
 gr_for_M1 <- GR_data[tss_df$target.row]
 DM_sites_M1$coord_key <- paste(seqnames(gr_for_M1), start(gr_for_M1), sep="_")
 #Writing output file:
@@ -100,12 +102,14 @@ peakAnno <- annotatePeak(GR_data,
 peakAnno_df <- as.data.frame(peakAnno)
 peakAnno_df <- peakAnno_df %>% dplyr::rename("region_type" = annotation)
 peakAnno_df$coord_key <- paste(peakAnno_df$seqnames, peakAnno_df$start, sep="_")
-DM_sites_M2 <- data.frame(peakAnno_df[, c("region_type", "SYMBOL", "coord_key")])
+peakAnno_df$distanceToTSS <- abs(peakAnno_df$distanceToTSS)
+
+DM_sites_M2 <- data.frame(peakAnno_df[, c("region_type", "SYMBOL", "coord_key", "distanceToTSS")])
 M2 <- write_output_file(general_df, DM_sites_M2, 2)
 
 #Writing output file for Method 3:
 DM_sites_M3 <- peakAnno_df[(peakAnno_df$region_type == 'Promoter (<=1kb)') | (peakAnno_df$region_type == 'Promoter (1-2kb)'), ]
-DM_sites_M3 <- data.frame(DM_sites_M3[, c("region_type", "SYMBOL", "coord_key")])
+DM_sites_M3 <- data.frame(DM_sites_M3[, c("region_type", "SYMBOL", "coord_key", "distanceToTSS")])
 M3 <- write_output_file(general_df, DM_sites_M3, 3)
 
 
@@ -120,7 +124,10 @@ hits <- findOverlaps(GR_data, tss_points, maxgap = 10000, select = "all")
 anno_range_10kb_df <- data.frame(
   seqnames       = as.character(seqnames(GR_data)[queryHits(hits)]),
   start          = start(GR_data)[queryHits(hits)],
-  feature        = names(tss_points)[subjectHits(hits)]
+  feature        = names(tss_points)[subjectHits(hits)],
+  tss_start       = start(tss_points)[subjectHits(hits)],
+  tss_strand      = as.character(strand(tss_points)[subjectHits(hits)]),
+  distanceToTSS   = distance(GR_data[queryHits(hits)], tss_points[subjectHits(hits)])
 )
 
 #Assigning SYMBOL and coord_keys
@@ -134,7 +141,7 @@ anno_range_10kb_df$coord_key <- paste(anno_range_10kb_df$seqnames, anno_range_10
 anno_range_10kb_final <- anno_range_10kb_df %>% filter(!is.na(SYMBOL))
 
 #Writing output file:
-DM_sites_M4 <- anno_range_10kb_final[, c("SYMBOL", "coord_key")]
+DM_sites_M4 <- anno_range_10kb_final[, c("SYMBOL", "coord_key", "distanceToTSS")]
 M4 <- write_output_file(general_df, DM_sites_M4, 4)
 
 
@@ -150,11 +157,17 @@ TSS_map <- extendTSS(annoData, gene_id_type = "ENTREZ",
                      extension = 1000000)
 
 #Now finding overlaps between CpG and the map
-hits <- findOverlaps(GR_data, TSS_map)
+hits_M5 <- findOverlaps(GR_data, TSS_map)
 
-great_df <- data.frame(seqnames      = as.character(seqnames(GR_data))[queryHits(hits)],
-                       start         = start(GR_data)[queryHits(hits)],
-                       feature       = names(TSS_map)[subjectHits(hits)]  # gene_id ENTREZ
+#Matching TSS_map and tss_points, in order to use tss_maps to calculate distanceToTSS:
+matched_idx <- match(names(TSS_map)[subjectHits(hits_M5)], names(tss_points))
+
+great_df <- data.frame(seqnames      = as.character(seqnames(GR_data))[queryHits(hits_M5)],
+                       start         = start(GR_data)[queryHits(hits_M5)],
+                       feature       = names(TSS_map)[subjectHits(hits_M5)],  # gene_id ENTREZ
+                       tss_start       = start(tss_points)[matched_idx],
+                       tss_strand      = as.character(strand(tss_points))[matched_idx],
+                       distanceToTSS   = distance(GR_data[queryHits(hits_M5)], tss_points[matched_idx])
 )
 
 #Now passing from ENTREZID to SYMBOLs
@@ -169,7 +182,7 @@ great_df$coord_key <- paste(great_df$seqnames, great_df$start, sep = "_")
 great_final <- great_df %>% filter(!is.na(SYMBOL))
 
 #Final output for Method 5:
-DM_sites_M5 <- great_final[, c("SYMBOL", "coord_key")]
+DM_sites_M5 <- great_final[, c("SYMBOL", "coord_key", "distanceToTSS")]
 M5 <- write_output_file(general_df, DM_sites_M5, 5)
 
 

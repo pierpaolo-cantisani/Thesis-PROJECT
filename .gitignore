@@ -4,17 +4,18 @@ references/
 *quant_D2/
 ML_eQTM_model/
 .vscode/
+rnaseq/
+wgbs/
 
 ## Outputs and heavy files (except graphs)
 #Data files
 GSM*
 GSE*
 *.tar
-Metadata_from_Paper.xlsx
+*.rds
 *.bgz.tbi
 *.bgz
-full_qc_report*
-Additional_f6_ST4.txt
+*.sf
 #Results heavy files
 DE_results.csv
 meth25p.csv
@@ -23,8 +24,12 @@ stats_table.csv
 RNAseq_universe.csv
 M_CpG_matrix.csv
 Method_final_df.xlsx
-*.rds
 !session_info*
+ground_truth.tsv
+#Others
+Metadata_from_Paper.xlsx
+full_qc_report*
+Additional_f6_ST4.txt
 
 #Graphs
 *.pdf

@@ -78,7 +78,7 @@ dir.create("methylDB", showWarnings = FALSE)
 # a. Object building: saving on disk in bismarkCoverage format
 #    chr  start  end  meth%  count_M  count_U
 for (i in seq_along(files)) {
-  df <- fread(files[i], col.names = c("chromosome", "CpG_position", "M_counts", "Total_counts"))
+  df <- fread(files[i], header = TRUE, col.names = c("chromosome", "CpG_position", "M_counts", "Total_counts"))
   df <- df[grepl("^chr", chromosome) & Total_counts > 0]   # removes spike-in e coverage 0
   out <- data.table(
     chr     = df$chromosome,

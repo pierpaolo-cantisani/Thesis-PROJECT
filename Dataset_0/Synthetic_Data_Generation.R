@@ -92,7 +92,7 @@ p_downstream   <- 0.80           # P(offset is downstream of TSS, i.e. into the 
 stopifnot(abs(sum(quadrant_props) - 1) < 1e-9)
 
 ## ------------------------- 1. genes + features from GTF (placement) --------
-gtf   <- import(gtf_path)
+#gtf   <- import(gtf_path)
 genes <- gtf[gtf$type == "gene"]
 genes <- keepStandardChromosomes(genes, pruning.mode = "coarse")
 genes <- genes[!duplicated(genes$gene_id)]
@@ -108,31 +108,48 @@ gene_tab <- data.frame(
 ## ------------------------- 2. place CpG coordinates (by TSS distance) -------
 n <- n_cpg_total
 cpg <- data.frame(cpg_id = sprintf("cpg%05d", seq_len(n)), stringsAsFactors = FALSE)
-is_distal <- runif(n) < frac_distal
+is_distal <- runif(n) < frac_distal        # fixed once: preserves frac_distal exactly
+chr_pool  <- unique(gene_tab$chr)
 
-chr <- character(n); pos <- integer(n)
+# (re)draw chr/pos for a set of row indices, respecting each row's distal flag.
+# non-distal: random host gene, pos = TSS +/- log-uniform offset (strand-aware).
+# distal:     random far positions -> M2 labels them "Distal Intergenic".
+draw_positions <- function(idx) {
+  ch <- character(length(idx)); ps <- integer(length(idx))
+  nd <- !is_distal[idx]; ds <- is_distal[idx]
+  if (any(nd)) {
+    gs <- gene_tab[sample(nrow(gene_tab), sum(nd), replace = TRUE), ]
+    d  <- round(10^runif(sum(nd), log10(tss_dist_range[1]), log10(tss_dist_range[2])))
+    downstream <- runif(sum(nd)) < p_downstream
+    sgn <- ifelse(gs$strand == "-", -1L, 1L) * ifelse(downstream, 1L, -1L)
+    ch[nd] <- gs$chr
+    ps[nd] <- pmax(1L, as.integer(gs$tss + sgn * d))
+  }
+  if (any(ds)) {
+    ch[ds] <- sample(chr_pool, sum(ds), replace = TRUE)
+    ps[ds] <- as.integer(runif(sum(ds), 1e4, 2e8))
+  }
+  list(chr = ch, pos = ps)
+}
 
-# non-distal: random host gene, position = TSS +/- log-uniform offset (strand-aware).
-# We do NOT pick a region type; M2 will label wherever the CpG landed.
-k  <- sum(!is_distal)
-gs <- gene_tab[sample(nrow(gene_tab), k, replace = TRUE), ]
-d  <- round(10^runif(k, log10(tss_dist_range[1]), log10(tss_dist_range[2])))
-downstream <- runif(k) < p_downstream
-# genomic sign: downstream = +d on '+' strand, -d on '-' strand (upstream reversed)
-sgn <- ifelse(gs$strand == "-", -1L, 1L) * ifelse(downstream, 1L, -1L)
-chr[!is_distal] <- gs$chr
-pos[!is_distal] <- pmax(1L, as.integer(gs$tss + sgn * d))
-
-# distal: random far positions -> M2 labels them "Distal Intergenic"
-chr_pool <- unique(gene_tab$chr)
-chr[is_distal] <- sample(chr_pool, sum(is_distal), replace = TRUE)
-pos[is_distal] <- as.integer(runif(sum(is_distal), 1e4, 2e8))
+# initial draw, then resample ONLY the surplus copies of any colliding (chr,pos)
+d0 <- draw_positions(seq_len(n)); chr <- d0$chr; pos <- d0$pos
+guard <- 0L
+repeat {
+  key  <- paste(chr, pos)
+  redo <- which(duplicated(key))           # 2nd+ occurrence; first of each key is kept
+  if (!length(redo)) break
+  dd <- draw_positions(redo); chr[redo] <- dd$chr; pos[redo] <- dd$pos
+  guard <- guard + 1L
+  if (guard > 100L) stop("dedup loop not converging: check tss_dist_range / n_cpg_total")
+}
 
 cpg$chr <- chr; cpg$pos <- as.integer(pos)
 cpg$strand <- "+"    # single-strand projection (destranded CpGs)
+stopifnot(!any(duplicated(paste(cpg$chr, cpg$pos))))   # closes the diagnosis: must hold
 
 ## ------------------------- 3. M2: ChIPseeker annotatePeak ------------------
-txdb <- makeTxDbFromGFF(gtf_path, format = "gtf")
+#txdb <- makeTxDbFromGFF(gtf_path, format = "gtf")
 GR_data <- GRanges(cpg$chr, IRanges(cpg$pos, cpg$pos), strand = cpg$strand)
 peakAnno <- annotatePeak(GR_data, tssRegion = tss_region, TxDb = txdb, annoDb = "org.Hs.eg.db")
 pa <- as.data.frame(peakAnno)
@@ -236,14 +253,19 @@ coarse <- function(x) ifelse(grepl("^Promoter", x), "promoter",
                                                          ifelse(grepl("^Downstream", x), "downstream",
                                                                 ifelse(grepl("Intergenic", x),  "intergenic", "other")))))))
 sm <- c(
-  sprintf("CpGs: %d | M2 genes: %d | DE genes: %d", n, nrow(gene_de), sum(gene_de$is_DE)),
-  "--- REALISED marginals (round-trip target; emergent under M2) ---",
+  sprintf("M2 genes: %d", nrow(gene_de)),
+  sprintf("DE genes: %d", sum(gene_de$is_DE)),
+  sprintf("CpGs: %d",     n),
+  sprintf("DM CpGs: %d",  sum(cpg$is_DM)),
+  print(""),
+  print("--- REALISED marginals (round-trip target; emergent under M2) ---"),
   sprintf("DM (any)   : %.3f", mean(cpg$is_DM)),
   sprintf("both DE&DM : %.3f", mean(cpg$category == "both")),
   sprintf("dm_only    : %.3f", mean(cpg$category == "dm_only")),
   sprintf("de_only    : %.3f", mean(cpg$category == "de_only")),
   "--- quadrant split of the BOTH set (realised) ---",
   capture.output(print(round(prop.table(table(cpg$quadrant)), 3))),
+  print(""),
   "--- M2 region_type of DM CpGs (coarse) ---",
   capture.output(print(round(prop.table(table(coarse(cpg$m2_region[cpg$is_DM]))), 3)))
 )

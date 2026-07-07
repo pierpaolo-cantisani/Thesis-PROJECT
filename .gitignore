@@ -26,10 +26,12 @@ M_CpG_matrix.csv
 Method_final_df.xlsx
 !session_info*
 ground_truth.tsv
+Upset_genes.xlsx
 #Others
 Metadata_from_Paper.xlsx
 full_qc_report*
 Additional_f6_ST4.txt
+
 
 #Graphs
 *.pdf

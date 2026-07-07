@@ -192,9 +192,6 @@ M5 <- write_output_file(general_df, DM_sites_M5, 5)
 
 
 
-## Exporting all CpGs:
-all_cpg <- 
-
 
 
 #### PROBLEMI

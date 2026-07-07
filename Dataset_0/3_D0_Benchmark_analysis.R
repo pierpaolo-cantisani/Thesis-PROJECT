@@ -15,27 +15,27 @@ PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 ### Importing data ###
 ##Importing myDiff
-myDiff25p_GR_hg38 <- readRDS(file.path(PATH, "Dataset_1", "2_BS-Seq", "myDiff25p_GR_hg38.rds"))
+myDiff25p_GR <- readRDS(file.path(PATH, "Dataset_0", "2_BS-Seq", "myDiff25p_GR.rds"))
 #General df
-GR_df <- as.data.frame(myDiff25p_GR_hg38)
+GR_df <- as.data.frame(myDiff25p_GR)
 general_df <- GR_df[, c("seqnames", "start", "meth.diff")]
 general_df$coord_key <- paste(general_df$seqnames, general_df$start, sep="_")
 
 # In this pipeline the GRanges object for the annotation will be:
-GR_data <- myDiff25p_GR_hg38
+GR_data <- myDiff25p_GR
 
 #Ref for M1 and M5
-#txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
-gtf_file <- file.path(PATH, "references", "gencode.v49.annotation.gtf.gz")
-
-txdb <- makeTxDbFromGFF(
-  gtf_file,
-  format = "gtf"
-)
-
+# gtf_file <- file.path(PATH, "references", "gencode.v49.annotation.gtf.gz")
+# 
+# txdb <- makeTxDbFromGFF(
+#   gtf_file,
+#   format = "gtf"
+# )
 
 #Used in M4 and M5
 annoData <- genes(txdb)
+names(annoData) <- sub("\\.[0-9]+$", "", names(annoData))
+annoData$gene_id <- sub("\\.[0-9]+$", "", annoData$gene_id)
 
 
 
@@ -50,7 +50,7 @@ write_output_file <- function(general_df, specific_df, Method_n) {
                      by = "coord_key",
                      sort = TRUE)
   
-  file_name = sprintf(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met%d.csv"), Method_n)
+  file_name = sprintf(file.path(PATH, "Dataset_0", "3_Benchmark", "DM_sites_Met%d.csv"), Method_n)
   write.csv(output_df, file = file_name, row.names = FALSE)
   return(output_df)
 }
@@ -145,17 +145,20 @@ anno_range_10kb_df <- data.frame(
 )
 
 #Assigning SYMBOL and coord_keys
+ens4 <- sub("\\.[0-9]+$", "", anno_range_10kb_df$feature)
 symbols_4 <- mapIds(org.Hs.eg.db,
-                    keys      = anno_range_10kb_df$feature,
+                    keys      = ens4,
                     column    = "SYMBOL",
-                    keytype   = "ENTREZID",
+                    keytype   = "ENSEMBL",
                     multiVals = "first")
 anno_range_10kb_df$SYMBOL <- as.character(symbols_4)
 anno_range_10kb_df$coord_key <- paste(anno_range_10kb_df$seqnames, anno_range_10kb_df$start, sep="_")
-anno_range_10kb_final <- anno_range_10kb_df %>% filter(!is.na(SYMBOL))
+
+#Filtering: NO filtering for the + ctrl
+#anno_range_10kb_final <- anno_range_10kb_df %>% filter(!is.na(SYMBOL))
 
 #Writing output file:
-DM_sites_M4 <- anno_range_10kb_final[, c("SYMBOL", "coord_key", "distanceToTSS")]
+DM_sites_M4 <- anno_range_10kb_df[, c("SYMBOL", "coord_key", "distanceToTSS")]
 M4 <- write_output_file(general_df, DM_sites_M4, 4)
 
 
@@ -163,7 +166,7 @@ M4 <- write_output_file(general_df, DM_sites_M4, 4)
 #####
 ##### METHOD 5: rGREAT (-5 kb, 1 kb) plus extension until nearest gene up to 1 MB in both directions #####
 
-TSS_map <- extendTSS(annoData, gene_id_type = "ENTREZ", 
+TSS_map <- extendTSS(annoData, gene_id_type = "ENSEMBL", 
                      mode = "basalPlusExt", 
                      extend_from = "TSS", 
                      basal_upstream = 5000, 
@@ -185,33 +188,32 @@ great_df <- data.frame(seqnames        = as.character(seqnames(GR_data))[queryHi
 )
 
 #Now passing from ENTREZID to SYMBOLs
+ens5 <- sub("\\.[0-9]+$", "", great_df$feature)
 symbols_5 <- mapIds(org.Hs.eg.db,
-                    keys = great_df$feature,
+                    keys = ens5,
                     column = "SYMBOL",
-                    keytype = "ENTREZID",
+                    keytype = "ENSEMBL",
                     multiVals = "first")
 
 great_df$SYMBOL <- as.character(symbols_5)
 great_df$coord_key <- paste(great_df$seqnames, great_df$start, sep = "_")
-great_final <- great_df %>% filter(!is.na(SYMBOL))
+
+#Filtering: NO filtering for the + ctrl
+#great_final <- great_df %>% filter(!is.na(SYMBOL))
 
 #Final output for Method 5:
-DM_sites_M5 <- great_final[, c("SYMBOL", "coord_key", "distanceToTSS")]
+DM_sites_M5 <- great_df[, c("SYMBOL", "coord_key", "distanceToTSS")]
 M5 <- write_output_file(general_df, DM_sites_M5, 5)
 
 
+## Final comparison on all CpGs against Ground Truth:
+gt <- read.delim(file.path(PATH, "Dataset_0", "Ground Truth", "ground_truth.tsv"))
+chk <- merge(DM_sites_M2[, c("coord_key","SYMBOL")],
+             gt[, c("coord_key","m2_symbol")], by = "coord_key")
+m_chk <- mean(chk$SYMBOL == chk$m2_symbol, na.rm = TRUE)   # Must be 1 (or around)
 
-## Exporting all CpGs:
-all_cpg <- 
-  
-  
-  
-  #### PROBLEMI
-  #- Per quanto riguarda il discorso della regione genomica, il metodo 1 ha regione genomica associata
-  #  non affidabile (magari cade in introne del gene A, ma il TSS più vicino è quello del gene B). Anche per
-  #  il metodo 4 potrebe essere così.
-  #  Una possibile soluzione è considerare concettualmente la regione non come regione del gene associato, bensì
-  #  come regione in generale. Quindi è una considerazione su come il tipo di regione influenza il gene associato, non su come
-  #  il tipo di regione del gene ASSOCIATO influenza il gene associato.
-  
-  #####
+#
+Output_df2 <- read.csv(file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_2.csv"))
+Output_df2 <- rbind(Output_df2, data.frame(metric= "Correct associations ratio (M2)", value = m_chk))
+
+write.csv(Output_df2, file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_3.csv"), row.names = FALSE)

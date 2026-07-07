@@ -33,7 +33,7 @@ sample_names = c("rep_1_TB", "rep_1_CTRL", "rep_2_TB", "rep_2_CTRL",
 ##Using MethylSeq.This tool expects a different format, so creating the methylKit object:
 methyl_obj <- new("methylRawList",                          #methylraw class is defined in the methylKit library
                   lapply(seq_along(files), function(i) {
-                    df <- fread(files[i], col.names = c("chr", "pos", "M", "M+U"))
+                    df <- fread(files[i], header = TRUE, col.names = c("chr", "pos", "M", "M+U"))
                     # removing spike-ins
                     df <- df[grepl("^chr", chr)]
                     new("methylRaw",

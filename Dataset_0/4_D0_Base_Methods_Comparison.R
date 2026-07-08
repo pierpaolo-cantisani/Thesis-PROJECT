@@ -322,7 +322,7 @@ names(Spear_padj_Q_list) <- paste0("M", seq_along(Matrix_exp_Q))
 
 ## Identifying unique/intersecting/common genes to all methods ##
 
-#Upset plot Spearman Delta
+## 3.1 Upset plot Spearman Delta ##
 Spear_symbol_list <- lapply(Spear_padj_list, function(x) {
   s <- x$SYMBOL
   s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
@@ -336,7 +336,7 @@ if (sum(lengths(Spear_symbol_list) > 0) >= 2) {
               mainbar.y.label = "Intersecting sign genes - Spearman Delta",
               sets.x.label = "Tot genes per method"))
 } else {
-  message("SKIP upset Delta: meno di 2 set non vuoti")
+  message("SKIP upset Delta: less than 2 non-empty sets")
 }
 
 #Upset plot Spearman eQTM
@@ -348,20 +348,19 @@ Spear_symbol_Q_list <- lapply(Spear_padj_Q_list, function(x) {
 names(Spear_symbol_Q_list) <- names(Spear_res_Q_list)
 
 #Plot significant Spearman eQTM
-#Plot significant Spearman eQTM -- salta se meno di 2 set non vuoti
 if (sum(lengths(Spear_symbol_Q_list) > 0) >= 2) {
   print(upset(fromList(Spear_symbol_Q_list),
               mainbar.y.label = "Intersecting sign genes - Spearman eQTM",
               sets.x.label = "Tot genes per method"))
 } else {
-  message("SKIP upset eQTM: meno di 2 set non vuoti")
+  message("SKIP upset eQTM: less than 2 non-empty sets")
 }
 
 
 
-## 2) Spearman correlation visualization ##
+## 3.2 Spearman correlation visualization ##
 
-#2.1: Rho distribution in methods
+# Rho distribution in methods
 
 #Delta
 df_Spear <- bind_rows(Spear_padj_list, .id = "method")
@@ -382,7 +381,64 @@ ggplot(df_Spear_Q, aes(x = rho, fill = method)) +
   theme_minimal()
 
 
-### 2) Percentage of significant and unique/different genes ###
+## 3.3 Barplot: significant vs tested pairs (stacked) ##
+
+# Builds a long df: for each method -> Significant + Non significant counts
+make_sig_barplot_df <- function(res_list, padj_list) {
+  do.call(rbind, lapply(seq_along(res_list), function(i) {
+    tot <- nrow(res_list[[i]])
+    sig <- nrow(padj_list[[i]])
+    data.frame(
+      method   = names(res_list)[i],
+      category = c("Significant", "Non significant"),
+      count    = c(sig, tot - sig),
+      stringsAsFactors = FALSE
+    )
+  }))
+}
+
+plot_sig_bar <- function(df, res_list, title) {
+  # keep method order M1..M5 (not alphabetical surprises)
+  df$method   <- factor(df$method, levels = names(res_list))
+  # stacking order: Significant on top of Non significant
+  df$category <- factor(df$category, levels = c("Non significant", "Significant"))
+  
+  # totals + significant fraction, for labels
+  totals <- do.call(rbind, lapply(names(res_list), function(m) {
+    sub <- df[df$method == m, ]
+    tot <- sum(sub$count)
+    sig <- sub$count[sub$category == "Significant"]
+    data.frame(method = m, tot = tot, sig = sig,
+               perc = ifelse(tot > 0, 100 * sig / tot, 0))
+  }))
+  totals$method <- factor(totals$method, levels = names(res_list))
+  
+  ggplot(df, aes(x = method, y = count, fill = category)) +
+    geom_col(width = 0.7) +
+    # total tested pairs on top of each bar
+    geom_text(data = totals, aes(x = method, y = tot, label = tot),
+              inherit.aes = FALSE, vjust = -0.4, size = 3) +
+    # % significant inside the colored segment
+    geom_text(data = totals,
+              aes(x = method, y = tot, label = sprintf("%d (%.1f%%)", sig, perc)),
+              inherit.aes = FALSE, vjust = 1.4, size = 2.8, color = "grey20") +
+    scale_fill_manual(values = c("Non significant" = "grey80",
+                                 "Significant"     = "#D55E00")) +
+    labs(title = title, x = "Method",
+         y = "Tested CpG-gene pairs", fill = NULL) +
+    theme_minimal()
+}
+
+bar_delta <- make_sig_barplot_df(Spear_res_list,   Spear_padj_list)
+bar_qtm   <- make_sig_barplot_df(Spear_res_Q_list, Spear_padj_Q_list)
+
+print(plot_sig_bar(bar_delta, Spear_res_list,
+                   "Significant vs tested pairs - Spearman Delta"))
+print(plot_sig_bar(bar_qtm,   Spear_res_Q_list,
+                   "Significant vs tested pairs - Spearman eQTM"))
+
+
+## 3.4 Percentage of significant and unique/different genes ##
 strip_suffix <- function(x) unique(sub("\\.\\d+$", "", x))
 
 compare_table <- data.frame(
@@ -455,8 +511,6 @@ create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataf
 
 ##Importing files
 meth25p <- read.csv(file.path(PATH, "Dataset_0", "2_BS-Seq", "meth25p.csv"))
-rnaseq_all <- read.csv(file.path(PATH, "Dataset_0", "1_RNA-Seq", "RNAseq_universe.csv"))
-rnaseq_all <- rnaseq_all %>% dplyr::rename("SYMBOL" = hugo_symbol)
 
 #sign DE genes will be needed later
 sign_DE <- read.csv(file.path(PATH, "Dataset_0", "1_RNA-Seq", "DE_results.csv"))
@@ -491,15 +545,6 @@ case_mean <- rowMeans(Matrix_Mv_2[, 51:100, drop = FALSE])
 Mean_Mv_df <- data.frame(coord_key = rownames(Matrix_Mv_2),
                          Mv_mean = case_mean - ctrl_mean)
 
-
-#!!Check: Are there duplicated genes in rnaseq_all (also present as .1, .2, etc..)?
-base_symbols <- sub("\\.\\d+$", "", rnaseq_all$SYMBOL)
-n_dup_base <- sum(duplicated(base_symbols))
-table_base <- table(base_symbols)
-table_base[table_base > 1]
-if (n_dup_base > 0) {
-  warning("There are some HUGO symbols that are duplicated in rnaseq_all: match() will select only the first occurence.")
-}
 
 ##Obtaining the integration matrices: For each CpG --> its mean Mvalue(subtracted conditions) + associated gene/s + its log2FC in the RNA-Seq
 Method_final_df <- list()
@@ -582,7 +627,7 @@ for(m in seq_along(Method_final_df)) {
   gg_list[[m]] <- ggplot(Method_final_df[[m]], aes(x = Mv, y = log2FC)) +
     geom_point(alpha = 0.5) +
     coord_cartesian(xlim = xlims, ylim = ylims) +
-    geom_point(data = Method_final_df[[m]][Method_final_df[[m]]$SYMBOL %in% sign_DE$SYMBOL, ], color = "red") +
+    geom_point(data = Method_final_df[[m]], color = "red") +
     geom_hline(yintercept = 0) +
     geom_vline(xintercept = 0) +
     theme_minimal() +
@@ -636,4 +681,4 @@ Output_final <- rbind(Output_bench,
                                            recall, fallout)))
 
 #Output excel:
-write_xlsx(Output_final, file.path(PATH, "Dataset_0", "Ground Truth", "Final output for comparison.xlsx"))
+write.csv(Output_final, file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_4.csv"))

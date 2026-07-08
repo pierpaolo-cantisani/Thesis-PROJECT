@@ -25,8 +25,8 @@ RNAseq_universe.csv
 M_CpG_matrix.csv
 Method_final_df.xlsx
 !session_info*
-ground_truth.tsv
 Upset_genes.xlsx
+ground_truth.tsv
 #Others
 Metadata_from_Paper.xlsx
 full_qc_report*

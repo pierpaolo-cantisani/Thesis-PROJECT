@@ -1,19 +1,18 @@
 M2 genes: 5900
-DE genes: 2941
+DE genes: 2942
 CpGs: 15000
-DM CpGs: 7479
+DM CpGs: 7478
 
 --- REALISED marginals (round-trip target; emergent under M2) ---
 DM (any)   : 0.499
-both DE&DM : 0.135
-dm_only    : 0.364
-de_only    : 0.140
+both DE&DM : 0.131
+dm_only    : 0.367
 --- quadrant split of the BOTH set (realised) ---
 
    Q1    Q2    Q3    Q4 
-0.111 0.423 0.087 0.380 
+0.108 0.402 0.095 0.396 
 
 --- M2 region_type of DM CpGs (coarse) ---
 
       3UTR       5UTR downstream       exon intergenic     intron   promoter 
-     0.016      0.007      0.004      0.077      0.184      0.431      0.281 
+     0.016      0.007      0.004      0.079      0.175      0.439      0.281 

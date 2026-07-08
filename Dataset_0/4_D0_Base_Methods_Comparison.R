@@ -153,6 +153,8 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
   #Changing row.names to SYMBOL
   rownames(Matrix_M) <- make.unique(Method_df$SYMBOL)  #To reconnect to the CpG, order must be followed: the first of the duplicated genes is associated to the first CpG in the "DM_sites_M" df.
   
+  attr(Matrix_M, "coord_key") <- Method_df$coord_key #saving coord_key for final comparison with Ground Truth
+  
   return(Matrix_M)
 }
 
@@ -196,11 +198,11 @@ new_names <- sub("numCs", "", colnames(Matrix_Mv))
 colnames(Matrix_Mv) <- new_names
 
 
-#Collapsing the matrix into 1 col x sample (Olig-Neun)
+### 2.a Spearman Correlation Delta ###
+
+#Collapsing the matrix into 1 col x sample (case-ctrl)
 n_pairs <- 50    #case and ctrl paired
 Matrix_Mv_new <- sapply(seq_len(n_pairs), function(k) Matrix_Mv[, k + n_pairs] - Matrix_Mv[, k])
-
-
 
 ##RNA expression: Creating the DE matrix
 #Normalization: vst()
@@ -228,8 +230,6 @@ Matrix_Mval[[3]] <- create_DM_matrix(M3_df, Matrix_Mv_new, Matrix_exp[[3]])
 Matrix_Mval[[4]] <- create_DM_matrix(M4_df, Matrix_Mv_new, Matrix_exp[[4]])
 Matrix_Mval[[5]] <- create_DM_matrix(M5_df, Matrix_Mv_new, Matrix_exp[[5]])
 
-
-
 ## Final check. Before statistics, we must check that the matrices are coherent
 for (m in seq_along(Matrix_exp)) {
   stopifnot(identical(rownames(Matrix_exp[[m]]), rownames(Matrix_Mval[[m]])))
@@ -237,7 +237,7 @@ for (m in seq_along(Matrix_exp)) {
 message("CHECK PASSED")
 
 
-### 2. Spearman Correlation ###
+##Spearman
 Spear_res_list <- list()
 Spear_padj_list <- list()
 for(m in seq_along(Matrix_exp)) {
@@ -250,6 +250,8 @@ for(m in seq_along(Matrix_exp)) {
   res <- as.data.frame(res)
   res$padj <- p.adjust(res$pvalue, method = "BH")
   res$SYMBOL <- row.names(Matrix_exp[[m]])
+  res$SYMBOL_base <- sub("\\.\\d+$", "", res$SYMBOL)     # gene puro
+  res$coord_key <- attr(Matrix_Mval[[m]], "coord_key") # CpG (identificatore vero)
   
   Spear_res_list[[m]] <- res
   Spear_padj_list[[m]] <- res %>% filter(padj < 0.05)
@@ -259,12 +261,68 @@ names(Spear_padj_list) <- paste0("M", seq_along(Matrix_exp))
 
 
 
+### 2.b Spearman Correlation eQTM ###
+
+#Subtracting the ctrl mean to ctrl samples and case mean to case samples
+#methylation
+ctl_mean <- rowMeans(Matrix_Mv[, 1:50, drop = FALSE])
+cas_mean <- rowMeans(Matrix_Mv[, 51:100, drop = FALSE])
+Matrix_Mv_Q <- Matrix_Mv
+Matrix_Mv_Q[, 1:50] <- Matrix_Mv_Q[, 1:50] - ctl_mean
+Matrix_Mv_Q[, 51:100] <- Matrix_Mv_Q[, 51:100] - cas_mean
+
+#expression
+ctl_vst_mean <- rowMeans(vst_expr_matrix[, 1:50, drop = FALSE])
+cas_vst_mean <- rowMeans(vst_expr_matrix[, 51:100, drop = FALSE])
+vst_expr_matrix_Q <- vst_expr_matrix
+vst_expr_matrix_Q[, 1:50] <- vst_expr_matrix_Q[, 1:50] - ctl_vst_mean
+vst_expr_matrix_Q[, 51:100] <- vst_expr_matrix_Q[, 51:100] - cas_vst_mean
+
+Matrix_exp_Q <- list()
+Matrix_exp_Q[[1]] <- create_DE_matrix(M1_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
+Matrix_exp_Q[[2]] <- create_DE_matrix(M2_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
+Matrix_exp_Q[[3]] <- create_DE_matrix(M3_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
+Matrix_exp_Q[[4]] <- create_DE_matrix(M4_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
+Matrix_exp_Q[[5]] <- create_DE_matrix(M5_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
+## Not all initial genes are mantained here. Only the ones that were present in the "universe"
+
+
+## Obtaining the Matrices Mval for each different method:
+Matrix_Mval_Q <- list()
+Matrix_Mval_Q[[1]] <- create_DM_matrix(M1_df, Matrix_Mv_Q, Matrix_exp_Q[[1]])
+Matrix_Mval_Q[[2]] <- create_DM_matrix(M2_df, Matrix_Mv_Q, Matrix_exp_Q[[2]])
+Matrix_Mval_Q[[3]] <- create_DM_matrix(M3_df, Matrix_Mv_Q, Matrix_exp_Q[[3]])
+Matrix_Mval_Q[[4]] <- create_DM_matrix(M4_df, Matrix_Mv_Q, Matrix_exp_Q[[4]])
+Matrix_Mval_Q[[5]] <- create_DM_matrix(M5_df, Matrix_Mv_Q, Matrix_exp_Q[[5]])
+
+##Spearman
+Spear_res_Q_list <- list()
+Spear_padj_Q_list <- list()
+for(m in seq_along(Matrix_exp_Q)) {
+  res_t <- sapply(seq_len(nrow(Matrix_exp_Q[[m]])), function (i) {
+    corr <- cor.test(Matrix_Mval_Q[[m]][i, ], Matrix_exp_Q[[m]][i, ], method = 'spearman')
+    c(rho = unname(corr$estimate), pvalue = corr$p.value)
+  })
+  
+  res <- t(res_t)
+  res <- as.data.frame(res)
+  res$padj <- p.adjust(res$pvalue, method = "BH")
+  res$SYMBOL <- row.names(Matrix_exp_Q[[m]])
+  res$SYMBOL_base <- sub("\\.\\d+$", "", res$SYMBOL)     # gene puro
+  res$coord_key <- attr(Matrix_Mval_Q[[m]], "coord_key") # CpG (identificatore vero)
+  
+  Spear_res_Q_list[[m]] <- res
+  Spear_padj_Q_list[[m]] <- res %>% filter(padj < 0.05)
+}
+names(Spear_res_Q_list) <- paste0("M", seq_along(Matrix_exp_Q))
+names(Spear_padj_Q_list) <- paste0("M", seq_along(Matrix_exp_Q))
+
 
 ### 3. Visualizations for METHOD COMPARISONS ###
 
 ## Identifying unique/intersecting/common genes to all methods ##
 
-#Upset plot Spearman
+#Upset plot Spearman Delta
 Spear_symbol_list <- lapply(Spear_padj_list, function(x) {
   s <- x$SYMBOL
   s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
@@ -272,23 +330,55 @@ Spear_symbol_list <- lapply(Spear_padj_list, function(x) {
 })
 names(Spear_symbol_list) <- names(Spear_res_list)
  
-#Plot significant Spearman
-upset(fromList(Spear_symbol_list),
-      mainbar.y.label = "Intersecting sign genes - Spearman",
-      sets.x.label = "Tot genes per method")
+#Plot significant Spearman Delta
+if (sum(lengths(Spear_symbol_list) > 0) >= 2) {
+  print(upset(fromList(Spear_symbol_list),
+              mainbar.y.label = "Intersecting sign genes - Spearman Delta",
+              sets.x.label = "Tot genes per method"))
+} else {
+  message("SKIP upset Delta: meno di 2 set non vuoti")
+}
+
+#Upset plot Spearman eQTM
+Spear_symbol_Q_list <- lapply(Spear_padj_Q_list, function(x) {
+  s <- x$SYMBOL
+  s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
+  unique(s)
+})
+names(Spear_symbol_Q_list) <- names(Spear_res_Q_list)
+
+#Plot significant Spearman eQTM
+#Plot significant Spearman eQTM -- salta se meno di 2 set non vuoti
+if (sum(lengths(Spear_symbol_Q_list) > 0) >= 2) {
+  print(upset(fromList(Spear_symbol_Q_list),
+              mainbar.y.label = "Intersecting sign genes - Spearman eQTM",
+              sets.x.label = "Tot genes per method"))
+} else {
+  message("SKIP upset eQTM: meno di 2 set non vuoti")
+}
 
 
 
 ## 2) Spearman correlation visualization ##
 
 #2.1: Rho distribution in methods
-df_Spear <- bind_rows(Spear_padj_list, .id = "method")
 
+#Delta
+df_Spear <- bind_rows(Spear_padj_list, .id = "method")
 #Density
 ggplot(df_Spear, aes(x = rho, fill = method)) +
   geom_density(alpha = 0.4) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
-  labs(x = "Spearman rho", y = "Density") +
+  labs(x = "Spearman rho Delta", y = "Density") +
+  theme_minimal()
+
+#eQTM
+df_Spear_Q <- bind_rows(Spear_padj_Q_list, .id = "method")
+#Density
+ggplot(df_Spear_Q, aes(x = rho, fill = method)) +
+  geom_density(alpha = 0.4) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
+  labs(x = "Spearman rho eQTM", y = "Density") +
   theme_minimal()
 
 
@@ -300,14 +390,34 @@ compare_table <- data.frame(
   "Tot associations - intersection" = sapply(seq_along(Matrix_Mval), function(j) {
     nrow(Matrix_Mval[[j]])
   }),
-  "Perc sig Spearman" = sapply(seq_along(Spear_padj_list), function(i) {
+  "Perc sig CpG-gene Delta" = sapply(seq_along(Spear_padj_list), function(i) {
     length(Spear_padj_list[[i]]$padj)/length(Spear_res_list[[i]]$padj)
   }),
-  "Perc unique sig Spearman" = sapply(seq_along(Spear_padj_list), function(i) {
+  "Perc sig genes Delta" = sapply(seq_along(Spear_padj_list), function(i) {
+    sig_genes <- length(unique(sub("\\.\\d+$", "", Spear_padj_list[[i]]$SYMBOL)))
+    tot_genes <- length(unique(sub("\\.\\d+$", "", Spear_res_list[[i]]$SYMBOL)))
+    sig_genes / tot_genes
+  }),
+  "Perc unique sig Delta" = sapply(seq_along(Spear_padj_list), function(i) {
     unique_sig <- setdiff(strip_suffix(Spear_padj_list[[i]]$SYMBOL),
                           strip_suffix(unlist(lapply(Spear_padj_list[-i], function(x) x$SYMBOL))))
     unique_all <- setdiff(strip_suffix(Spear_res_list[[i]]$SYMBOL),
                           strip_suffix(unlist(lapply(Spear_res_list[-i], function(x) x$SYMBOL))))
+    length(unique_sig) / length(unique_all)
+  }),
+  "Perc sig CpG-gene eQTM" = sapply(seq_along(Spear_padj_Q_list), function(i) {
+    length(Spear_padj_Q_list[[i]]$padj)/length(Spear_res_Q_list[[i]]$padj)
+  }),
+  "Perc sig genes eQTM" = sapply(seq_along(Spear_padj_Q_list), function(i) {
+    sig_genes <- length(unique(sub("\\.\\d+$", "", Spear_padj_Q_list[[i]]$SYMBOL)))
+    tot_genes <- length(unique(sub("\\.\\d+$", "", Spear_res_Q_list[[i]]$SYMBOL)))
+    sig_genes / tot_genes
+  }),
+  "Perc unique sig eQTM" = sapply(seq_along(Spear_padj_Q_list), function(i) {
+    unique_sig <- setdiff(strip_suffix(Spear_padj_Q_list[[i]]$SYMBOL),
+                          strip_suffix(unlist(lapply(Spear_padj_Q_list[-i], function(x) x$SYMBOL))))
+    unique_all <- setdiff(strip_suffix(Spear_res_Q_list[[i]]$SYMBOL),
+                          strip_suffix(unlist(lapply(Spear_res_Q_list[-i], function(x) x$SYMBOL))))
     length(unique_sig) / length(unique_all)
   }),
   check.names = FALSE,
@@ -393,11 +503,11 @@ if (n_dup_base > 0) {
 
 ##Obtaining the integration matrices: For each CpG --> its mean Mvalue(subtracted conditions) + associated gene/s + its log2FC in the RNA-Seq
 Method_final_df <- list()
-Method_final_df[[1]] <- create_integr_df(M1_df, Mean_Mv_df, rnaseq_all)
-Method_final_df[[2]] <- create_integr_df(M2_df, Mean_Mv_df, rnaseq_all)
-Method_final_df[[3]] <- create_integr_df(M3_df, Mean_Mv_df, rnaseq_all)
-Method_final_df[[4]] <- create_integr_df(M4_df, Mean_Mv_df, rnaseq_all)
-Method_final_df[[5]] <- create_integr_df(M5_df, Mean_Mv_df, rnaseq_all)
+Method_final_df[[1]] <- create_integr_df(M1_df, Mean_Mv_df, sign_DE)
+Method_final_df[[2]] <- create_integr_df(M2_df, Mean_Mv_df, sign_DE)
+Method_final_df[[3]] <- create_integr_df(M3_df, Mean_Mv_df, sign_DE)
+Method_final_df[[4]] <- create_integr_df(M4_df, Mean_Mv_df, sign_DE)
+Method_final_df[[5]] <- create_integr_df(M5_df, Mean_Mv_df, sign_DE)
 ## Not all intial genes are mantained here. Only the ones that were present in the "universe"
 
 
@@ -413,24 +523,24 @@ Method_final_df <- lapply(Method_final_df, function(df) {
 names(Method_final_df) <- paste0("M", seq_along(Method_final_df))
 
 
-
 ### 2. Comparison
 
 # How many expected association does each method find? 
 quadrant_enrichment <- sapply(Method_final_df, function(df) {
   gene_df <- df %>%
-    group_by(SYMBOL) %>%
+    group_by(coord_key) %>%
     summarise(Mv_med = median(Mv),
               log2FC = unique(log2FC)[1],
               .groups = "drop") %>%
     filter(Mv_med != 0, log2FC != 0)
   
-  q2 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC > 0)  # hypo + up
-  q4 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC < 0)  # hyper + down
   q1 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC > 0)
+  q2 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC > 0)  # hypo + up
   q3 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC < 0)
+  q4 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC < 0)  # hyper + down
   
-  
+  tot = q1 + q2 +q3 +q4
+    
   expected_total <- q2 + q4
   unexpected_total <- q1 + q3
   
@@ -438,10 +548,13 @@ quadrant_enrichment <- sapply(Method_final_df, function(df) {
   p_bin_test <- binom.test(expected_total, expected_total + unexpected_total, p = 0.5, alternative = "greater")$p.value
   
   #This next one (expected_perc) is the fundamental metric: the % of points in the expected quadrants.
-  c(expected_perc = 100 * expected_total / (expected_total + unexpected_total),
+  c(expected_perc = 100 * expected_total / tot,
     odds_ratio = expected_total / unexpected_total, 
-    pvalue_quadrants = p_bin_test)
-
+    pvalue_quadrants = p_bin_test,
+    q1 = q1/tot, 
+    q2 = q2/tot, 
+    q3 = q3/tot, 
+    q4 = q4/tot)
 })
 
 quadrant_table <- as.data.frame(quadrant_enrichment)
@@ -496,16 +609,31 @@ dev.off()
 
 ## Importing output table
 Output_bench <- read.csv(file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_3.csv"), row.names = NULL)
-  
+
+#Stats for eQTM: 100 pairs
+# il control: le 100 coppie eqtm devono uscire sig con rho NEGATIVO in M2
+eqtm <- read.delim(file.path(PATH, "Dataset_0", "Ground Truth", "eqtm_pairs.tsv"))
+eqtm_keys <- eqtm$coord_key
+m2q <- Spear_res_Q_list[[2]]
+recall  <- mean(eqtm_keys %in% m2q$coord_key[m2q$padj < 0.05 & m2q$rho < 0])  # % presa dei 100 significativi eQTM
+# fallout sulle both-non-eqtm:
+both_keys    <- M2_df$coord_key[M2_df$SYMBOL %in% sign_DE$SYMBOL]
+noneqtm_keys <- setdiff(both_keys, eqtm_keys)
+fallout <- mean(noneqtm_keys %in% m2q$coord_key[m2q$padj < 0.05]) # % dei DE DM che esce statisticamente significativo ERRONEAMENTE
+
 #Obtaining stats (M2: CHIPseeker is the default for this + ctrl dataset)
 all_cpgs <- Output_bench$value[Output_bench$metric == "CpG sites"]
 DM_n <- nrow(meth25p)
-DE_n <-nrow(sign_DE)
-dm_only_cpg <- sum(!(M2_df$SYMBOL %in% sign_DE$SYMBOL))
+DE_n <- nrow(sign_DE)
 DE_DM_n <- sum(M2_df$SYMBOL %in% sign_DE$SYMBOL)
+dm_only_cpg <- sum(!(M2_df$SYMBOL %in% sign_DE$SYMBOL))
 
 Output_final <- rbind(Output_bench, 
-                      data.frame(metric = c("DM (any)", "both DE&DM", "dm_only", "de_only"), 
-                                 value = c(DM_n/all_cpgs, DE_DM_n/all_cpgs, dm_only_cpg/all_cpgs, (DE_n - DE_DM_n)/all_cpgs)))
-                      #quadrant_table
-#Output
+                      data.frame(metric = c("DM (any)", "both DE&DM", "dm_only", "q1", "q2", "q3", "q4",
+                                            "recall eQTM (ref=1)", "fallout eQTM (ref<0.05)"), 
+                                 value = c(DM_n/all_cpgs, DE_DM_n/all_cpgs, dm_only_cpg/all_cpgs, quadrant_table["q1", "M2"], 
+                                           quadrant_table["q2", "M2"], quadrant_table["q3", "M2"], quadrant_table["q4", "M2"],
+                                           recall, fallout)))
+
+#Output excel:
+write_xlsx(Output_final, file.path(PATH, "Dataset_0", "Ground Truth", "Final output for comparison.xlsx"))

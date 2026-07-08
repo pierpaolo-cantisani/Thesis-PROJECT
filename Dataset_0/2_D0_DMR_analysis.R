@@ -123,8 +123,8 @@ ggplot(myDiff_df, aes(x = meth.diff, y = -log10(qvalue))) +
   geom_point(alpha = 0.5) +
   geom_hline(yintercept = -log10(0.01), linetype = "dashed", color = "blue") +
   geom_vline(xintercept = c(-25, 25), linetype = "dashed", color = "blue") +
-  geom_point(data = myDiff_df_plot[!is.na(myDiff_df$qvalue) & 
-                                     myDiff_d_plot$qvalue < 0.01 & 
+  geom_point(data = myDiff_df[!is.na(myDiff_df$qvalue) & 
+                                     myDiff_df$qvalue < 0.01 & 
                                      abs(myDiff_df$meth.diff) > 25, ], color = "red") +
   theme_minimal() +
   labs(title = "Volcano plot: D0 Differential methylation", x = "meth.diff", y = "-log10(adj pvalue)")

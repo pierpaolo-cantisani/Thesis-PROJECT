@@ -92,7 +92,7 @@ p_downstream   <- 0.80           # P(offset is downstream of TSS, i.e. into the 
 stopifnot(abs(sum(quadrant_props) - 1) < 1e-9)
 
 ## ------------------------- 1. genes + features from GTF (placement) --------
-#gtf   <- import(gtf_path)
+gtf   <- import(gtf_path)
 genes <- gtf[gtf$type == "gene"]
 genes <- keepStandardChromosomes(genes, pruning.mode = "coarse")
 genes <- genes[!duplicated(genes$gene_id)]
@@ -149,7 +149,7 @@ cpg$strand <- "+"    # single-strand projection (destranded CpGs)
 stopifnot(!any(duplicated(paste(cpg$chr, cpg$pos))))   # closes the diagnosis: must hold
 
 ## ------------------------- 3. M2: ChIPseeker annotatePeak ------------------
-#txdb <- makeTxDbFromGFF(gtf_path, format = "gtf")
+txdb <- makeTxDbFromGFF(gtf_path, format = "gtf")
 GR_data <- GRanges(cpg$chr, IRanges(cpg$pos, cpg$pos), strand = cpg$strand)
 peakAnno <- annotatePeak(GR_data, tssRegion = tss_region, TxDb = txdb, annoDb = "org.Hs.eg.db")
 pa <- as.data.frame(peakAnno)
@@ -201,6 +201,24 @@ gene_de$length  <- sample(tx_length_range[1]:tx_length_range[2], nrow(gene_de), 
 gene_de$mu_ctrl <- exp(rnorm(nrow(gene_de), base_mean_log, 1))
 gene_de$mu_case <- gene_de$mu_ctrl * 2^gene_de$log2FC
 
+## ------------------------- 5b. eQTM injection setup (livelli, 100 coppie) --
+stopifnot("category" %in% names(cpg), "m2_symbol" %in% names(cpg))   # dipendenze
+rho_eqtm <- 0.8         # forza accoppiamento; 0 = nessuno (torna al comportamento attuale)
+n_eqtm   <- 100
+
+both_idx <- which(cpg$category == "both")
+stopifnot(length(both_idx) >= n_eqtm)
+eqtm_cpg <- sort(sample(both_idx, n_eqtm))          # 100 CpG target
+cpg$is_eqtm <- FALSE
+cpg$is_eqtm[eqtm_cpg] <- TRUE
+eqtm_gene_sym <- unique(cpg$m2_symbol[eqtm_cpg])    # geni-host target (per l'espressione)
+
+Z <- rnorm(n_pairs)                                 # latente per-soggetto, estratto UNA volta
+
+k_expr <-  sqrt(rho_eqtm) * subj_sd_rna
+k_meth <- -sqrt(rho_eqtm) * subj_sd_meth            # segno - : più metilato -> meno espresso
+w_idio <- sqrt(1 - rho_eqtm)                        # peso della parte idiosincratica
+
 ## ------------------------- 6. simulate + write RNA (.sf, keyed by SYMBOL) --
 write_sf <- function(counts, len, ids, path) {
   eff <- pmax(len - 200, 1); rate <- counts / eff
@@ -209,8 +227,11 @@ write_sf <- function(counts, len, ids, path) {
                          TPM = round(tpm, 4), NumReads = round(counts, 3)),
               path, sep = "\t", quote = FALSE, row.names = FALSE)
 }
+hit_rna <- gene_de$SYMBOL %in% eqtm_gene_sym                       ## <-- eQTM: geni target (una volta)
 for (p in seq_len(n_pairs)) {
-  re <- rnorm(nrow(gene_de), 0, subj_sd_rna)                 # shared subject baseline (paired)
+  re <- rnorm(nrow(gene_de), 0, subj_sd_rna)                       # shared subject baseline (paired)
+  re[hit_rna] <- w_idio * rnorm(sum(hit_rna), 0, subj_sd_rna) +    ## <-- eQTM: parte condivisa Z[p]
+    k_expr * Z[p]                                     ## <-- eQTM
   write_sf(rnbinom(nrow(gene_de), mu = gene_de$mu_ctrl * exp(re), size = 1 / nb_dispersion),
            gene_de$length, gene_de$SYMBOL, file.path(outdir_rna, "rnaseq", sprintf("ctrl_%d.sf", p)))
   write_sf(rnbinom(nrow(gene_de), mu = gene_de$mu_case * exp(re), size = 1 / nb_dispersion),
@@ -233,6 +254,8 @@ write_wgbs <- function(beta, cond, p) {
 }
 for (p in seq_len(n_pairs)) {
   re <- rnorm(n, 0, subj_sd_meth)
+  re[cpg$is_eqtm] <- w_idio * rnorm(sum(cpg$is_eqtm), 0, subj_sd_meth) + ## <-- eQTM: parte condivisa Z[p]
+    k_meth * Z[p]                                       ## <-- eQTM (segno - per anti-corr)
   bc <- clampb(invlogit(logit(clampb(cpg$beta_ctrl)) + re))
   write_wgbs(bc, "ctrl", p); write_wgbs(clampb(bc + cpg$deltaM), "case", p)
 }
@@ -262,12 +285,19 @@ sm <- c(
   sprintf("DM (any)   : %.3f", mean(cpg$is_DM)),
   sprintf("both DE&DM : %.3f", mean(cpg$category == "both")),
   sprintf("dm_only    : %.3f", mean(cpg$category == "dm_only")),
-  sprintf("de_only    : %.3f", mean(cpg$category == "de_only")),
   "--- quadrant split of the BOTH set (realised) ---",
   capture.output(print(round(prop.table(table(cpg$quadrant)), 3))),
   print(""),
   "--- M2 region_type of DM CpGs (coarse) ---",
   capture.output(print(round(prop.table(table(coarse(cpg$m2_region[cpg$is_DM]))), 3)))
 )
-writeLines(sm, file.path(outdir, "design_summary.txt"))
+writeLines(sm, file.path(outdir, "Ground_truth_for_comparison.txt"))
 cat(paste(sm, collapse = "\n"), "\n")
+
+## <-- eQTM: elenco esplicito delle 100 coppie target CpG-gene
+eqtm_pairs <- data.frame(
+  coord_key = paste(cpg$chr[eqtm_cpg], cpg$pos[eqtm_cpg], sep = "_"),
+  cpg_id    = cpg$cpg_id[eqtm_cpg],
+  SYMBOL    = cpg$m2_symbol[eqtm_cpg]
+)
+write.table(eqtm_pairs, file.path(outdir, "eqtm_pairs.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)

@@ -7,10 +7,11 @@ library(GenomicFeatures)
 library(GenomicRanges)
 library(rGREAT)
 
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 ### Importing data ###
 ##Importing myDiff
-myDiff25p_GR_hg38 <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/myDiff25p_GR_hg38.rds")
+myDiff25p_GR_hg38 <- readRDS(file.path(PATH, "Dataset_2", "2_BS-Seq", "myDiff25p_GR_hg38.rds"))
 #General df
 GR_df <- as.data.frame(myDiff25p_GR_hg38)
 general_df <- GR_df[, c("seqnames", "start", "meth.diff")]
@@ -37,7 +38,7 @@ write_output_file <- function(general_df, specific_df, Method_n) {
                      by = "coord_key",
                      sort = TRUE)
   
-  file_name = sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met%d.csv", Method_n)
+  file_name = file.path(PATH, "Dataset_2", "3_Benchmark", sprintf("DM_sites_Met%d.csv", Method_n))
   write.csv(output_df, file = file_name, row.names = FALSE)
   return(output_df)
 }
@@ -46,7 +47,7 @@ write_output_file <- function(general_df, specific_df, Method_n) {
 ## annotateWithGeneParts() associate each site to the nearest TSS, with no hierarchy nor range limit
 
 ## Importing reference (RefSeq hg38)
-gene.obj=readTranscriptFeatures("C:/Users/pierp/Desktop/THESIS PROJECT/references/refseq.hg38.bed")
+gene.obj=readTranscriptFeatures(file.path(PATH, "references", "refseq.hg38.bed"))
 ## Annotation
 diffCpGann <- annotateWithGeneParts(GR_data, gene.obj)
 

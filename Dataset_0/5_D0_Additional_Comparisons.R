@@ -273,7 +273,6 @@ for(METHOD in 1:5) {
   colnames(DM_num) <- c("SYMBOL", "n_DM_sites")
   DM_num$SYMBOL <- as.character(DM_num$SYMBOL)       #Avoid it being "factor"
   
-  multi_DM <- DM_sites %>% filter(SYMBOL %in% DM_num$SYMBOL[DM_num$n_DM_sites >= 2])
   multi_DM_genes  <- DM_num$SYMBOL[DM_num$n_DM_sites >= 2]   # ≥ 2 sites
   #Intersecting:
   multi_intersect_genes <- intersect(multi_DM_genes, intersect_genes)
@@ -430,9 +429,9 @@ for(METHOD in 1:5) {
   
   ##Final output data:
   Data_list[[sprintf("M%d", METHOD)]] <- c(
-    pvals_adj["hyp_intersect"],
-    pvals_adj["hyp_up"], pvals_adj["hyp_DM_up"], pvals_adj["hyp_fin_up"],
-    pvals_adj["hyp_down"], pvals_adj["hyp_DM_down"], pvals_adj["hyp_fin_down"],
+    pvals_adj["hyp_intersect"],  pvals_adj["hyp_DM_up"],
+    pvals_adj["hyp_up"], pvals_adj["hyp_fin_up"],
+    pvals_adj["hyp_DM_down"], pvals_adj["hyp_down"], pvals_adj["hyp_fin_down"],
     pvals_adj["hyp_up_hypo"], pvals_adj["hyp_down_hypo"],
     pvals_adj["hyp_up_hyper"], pvals_adj["hyp_down_hyper"],
     all_cor$estimate, pvals_adj["all_cor_p"],
@@ -448,8 +447,8 @@ options(scipen = 999)
 
 #Creating the Stats table
 final_df <- as.data.frame(Data_list)
-row.names(final_df) <- c("Sign of inters (padj)", 
-                         "All DM up (padj)", "DM ∩ DE DM up (padj)", "M ∩ DE vs All DM up (padj)",
+row.names(final_df) <- c("Sign of inters (padj)", "All DM up (padj)",
+                         "DM ∩ DE DM up (padj)", "DM ∩ DE vs All DM up (padj)",
                          "All DM down (padj)", "DM ∩ DE DM down (padj)", "DM ∩ DE vs All DM down (padj)",
                          "Hypo-up (padj)", "Hypo-down (padj)", "Hyper-up (padj)", "Hyper-down (padj)",
                          "meth Spear (rho)", "meth Spear (padj)", 

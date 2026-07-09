@@ -27,20 +27,30 @@ PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 pdf(file.path(PATH, "Dataset_1", "4_Integration_results", "Base_comparison D1.pdf"))
 
-##### --- PIPELINE 0: Simple Intersection --- #####
-
+#Importing:
 #Importing RNA-Seq DE genes
 sign_DE <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
 sign_DE <- sign_DE %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
+meth25p <- read.csv(file.path(PATH, "Dataset_1", "2_BS-Seq", "meth25p.csv"))
+
+#This will be different for the different lists:
+M1_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met1.csv"))
+M2_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met2.csv"))
+M3_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met3.csv"))
+M4_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met4.csv"))
+M5_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met5.csv"))
 
 
-#Importing BS-Seq DM sites
+
+##### --- PIPELINE 0: Simple Intersection --- #####
+
+#Imserting BS-Seq DM sites into a list
 M_list <- list()
-M_list[[1]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met1.csv"))
-M_list[[2]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met2.csv"))
-M_list[[3]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met3.csv"))
-M_list[[4]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met4.csv"))
-M_list[[5]] <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met5.csv"))
+M_list[[1]] <- M1_df
+M_list[[2]] <- M2_df
+M_list[[3]] <- M3_df
+M_list[[4]] <- M4_df
+M_list[[5]] <- M5_df
 
 
 inters_table <- sapply(seq_along(M_list), function(i) {
@@ -163,18 +173,8 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
 
 ## Importing files
 
-#meth25p <- choice at the beginning
+#meth25p, sign_DE, M1-5_df already imported. Only missing dds:
 dds <- readRDS(file.path(PATH, "Dataset_1", "1_RNA-Seq", "dds.rds"))
-meth25p <- read.csv(file.path(PATH, "Dataset_1", "2_BS-Seq", "meth25p.csv"))
-sign_DE <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
-names(sign_DE)[names(sign_DE) == "hugo_symbol"] <- "SYMBOL"
-
-#This will be different for the different lists:
-M1_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met1.csv"))
-M2_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met2.csv"))
-M3_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met3.csv"))
-M4_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met4.csv"))
-M5_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met5.csv"))
 
 
 ##Methylation: Creating the DM matrix:
@@ -212,11 +212,9 @@ Matrix_Mv_new <- sapply(seq_along(uneven), function(k)
   Matrix_Mv[, uneven[k]] - Matrix_Mv[, even[k]])
 
 #Expression
-uneven <- seq(1, ncol(vst_expr_matrix), by = 2)    #TB is uneven, Ctrl is even!!
-even <- seq(2, ncol(vst_expr_matrix), by = 2)
-
 vst_expr_matrix_new <- vst_expr_matrix[, uneven] - vst_expr_matrix[, even]
 
+#Creating matrices
 Matrix_exp <- list()
 Matrix_exp[[1]] <- create_DE_matrix(M1_df$SYMBOL, vst_expr_matrix_new, sign_DE$SYMBOL)
 Matrix_exp[[2]] <- create_DE_matrix(M2_df$SYMBOL, vst_expr_matrix_new, sign_DE$SYMBOL)
@@ -267,20 +265,15 @@ names(Spear_padj_list) <- paste0("M", seq_along(Matrix_exp))
 
 #Subtracting the ctrl mean to ctrl samples and case mean to case samples
 #methylation
+cas_mean <- rowMeans(Matrix_Mv[, uneven, drop = FALSE])   # TB
+ctl_mean <- rowMeans(Matrix_Mv[, even, drop = FALSE])     # CTRL
+
 Matrix_Mv_Q <- Matrix_Mv
 Matrix_Mv_Q[, uneven] <- Matrix_Mv_Q[, uneven] - cas_mean
 Matrix_Mv_Q[, even] <- Matrix_Mv_Q[, even] - ctl_mean
 
 
 ##RNA expression: Creating the DE matrix
-#Normalization: vst()
-vst_dds <- vst(dds, blind = FALSE)
-vst_expr_matrix <- assay(vst_dds)
-
-#Collapsing the expression matrix into 1 value x sample (TB-Ctrl)
-uneven <- seq(1, ncol(vst_expr_matrix), by = 2)    #TB is uneven, Ctrl is even!!
-even <- seq(2, ncol(vst_expr_matrix), by = 2)
-
 cas_vst_mean <- rowMeans(vst_expr_matrix[, uneven, drop = FALSE])
 ctl_vst_mean <- rowMeans(vst_expr_matrix[, even, drop = FALSE])
 
@@ -516,22 +509,9 @@ create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataf
 
 
 
-### 1. Importing files and matrix/dataframes creation ###
+### 1. Matrix/dataframes creation ###
 
-##Importing files
-meth25p <- read.csv(file.path(PATH, "Dataset_1", "2_BS-Seq", "meth25p.csv"))
-
-#sign DE genes will be needed later
-sign_DE <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
-sign_DE <- sign_DE %>% dplyr::rename("SYMBOL" = hugo_symbol)
-
-#This will be different for the different lists:
-M1_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met1.csv"))
-M2_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met2.csv"))
-M3_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met3.csv"))
-M4_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met4.csv"))
-M5_df <- read.csv(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met5.csv"))
-
+##All files imported at the beginning of the script
 
 ##Methylation: Creating the DM matrix:
 # Selecting columns numCs and numTs by names
@@ -634,9 +614,8 @@ ylims <- c(-FCmax, FCmax)
 gg_list <- list()
 for(m in seq_along(Method_final_df)) {
   gg_list[[m]] <- ggplot(Method_final_df[[m]], aes(x = Mv, y = log2FC)) +
-    geom_point(alpha = 0.5) +
-    coord_cartesian(xlim = xlims, ylim = ylims) +
     geom_point(data = Method_final_df[[m]], color = "red") +
+    coord_cartesian(xlim = xlims, ylim = ylims) +
     geom_hline(yintercept = 0) +
     geom_vline(xintercept = 0) +
     theme_minimal() +

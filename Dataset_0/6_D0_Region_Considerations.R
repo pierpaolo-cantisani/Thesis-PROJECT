@@ -204,7 +204,7 @@ for(METHOD in 1:5){
 }
 
 #Graph Output
-pdf(file.path(PATH, "Dataset_0", "4_Integration_results", "Region_analysis_ChIPseeker D1.pdf"), height = 10, width = 15)
+pdf(file.path(PATH, "Dataset_0", "4_Integration_results", "Region_analysis_ChIPseeker D0.pdf"), height = 10, width = 15)
 plot_grid(plotlist = graph_list, ncol = 2)
 dev.off()
 
@@ -253,4 +253,4 @@ Final_output <- rbind(Final_output,
                                  value = c(region_perc["3UTR", "M2"], region_perc["5UTR", "M2"], region_perc["downstream", "M2"], 
                                            region_perc["exon", "M2"], region_perc["intergenic", "M2"], region_perc["intron", "M2"], region_perc["promoter", "M2"])
                       ))
-write_xlsx(Final_output, file.path(PATH, "Dataset_0", "Ground Truth", "Final_output_for_comparison.xlsx"))
+write.xlsx(Final_output, file.path(PATH, "Dataset_0", "Ground Truth", "Final_output_for_comparison.xlsx"))

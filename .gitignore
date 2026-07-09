@@ -43,6 +43,7 @@ eqtm_pairs.tsv
 #R
 .Rhistory
 R_libraries*
+Full_Run*
 
 #ML model
 model1.pkl

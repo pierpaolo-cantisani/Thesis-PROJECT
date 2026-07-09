@@ -23,26 +23,36 @@ library(writexl)
 #         PIP1 chiede se metilazione ed espressione co-variano a livello individuale. 
 #         PIP2 chiede se la direzione dell'effetto disease è concorde tra le due omiche.
 
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Base_comparison D2.pdf")
+pdf(file.path(PATH, "Dataset_2", "4_Integration_results", "Base_comparison D2.pdf"))
+
+#Importing:
+#Importing RNA-Seq DE genes
+sign_DE <- read.csv(file.path(PATH, "Dataset_2", "1_RNA-Seq", "DE_results.csv"))
+sign_DE <- sign_DE %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
+meth25p <- read.csv(file.path(PATH, "Dataset_2", "2_BS-Seq", "meth25p.csv"))
+
+#This will be different for the different lists:
+M1_df <- read.csv(file.path(PATH, "Dataset_2", "3_Benchmark", "DM_sites_Met1.csv"))
+M2_df <- read.csv(file.path(PATH, "Dataset_2", "3_Benchmark", "DM_sites_Met2.csv"))
+M3_df <- read.csv(file.path(PATH, "Dataset_2", "3_Benchmark", "DM_sites_Met3.csv"))
+M4_df <- read.csv(file.path(PATH, "Dataset_2", "3_Benchmark", "DM_sites_Met4.csv"))
+M5_df <- read.csv(file.path(PATH, "Dataset_2", "3_Benchmark", "DM_sites_Met5.csv"))
+
+
 
 ##### --- PIPELINE 0: Simple Intersection --- #####
 
-#Importing RNA-Seq DE genes
-sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/1_RNA-Seq/DE_results.csv")
-sign_DE <- sign_DE %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
-
-
-#Importing BS-Seq DM sites
+#Imserting BS-Seq DM sites into a list
 M_list <- list()
-M_list[[1]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met1.csv")
-M_list[[2]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met2.csv")
-M_list[[3]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met3.csv")
-M_list[[4]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met4.csv")
-M_list[[5]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met5.csv")
+M_list[[1]] <- M1_df
+M_list[[2]] <- M2_df
+M_list[[3]] <- M3_df
+M_list[[4]] <- M4_df
+M_list[[5]] <- M5_df
 
-
-# Pulizia centralizzata: strip ".1", ".2" + unique
+# Cleaning: strip ".1", ".2" + unique
 clean_symbols <- function(x) unique(sub("\\.\\d+$", "", x))
 
 M_genes_unique  <- lapply(M_list, function(x) clean_symbols(x$SYMBOL))
@@ -50,6 +60,7 @@ DE_genes_unique <- clean_symbols(sign_DE$SYMBOL)
 names(M_genes_unique) <- paste0("M", seq_along(M_list))
 names(M_list)         <- paste0("M", seq_along(M_list))
 
+#Preparing data for Upset plot
 inters_table <- sapply(seq_along(M_list), function(i) {
   M_inters <- intersect(DE_genes_unique, M_genes_unique[[i]])
   
@@ -113,7 +124,7 @@ Upset_genes <- lapply(genes_by_region, function(g) {
 Upset_genes_df <- as.data.frame(Upset_genes, stringsAsFactors = FALSE, check.names = FALSE)
 colnames(Upset_genes_df) <- cate_names
 
-write_xlsx(Upset_genes_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Upset_genes.xlsx")
+write_xlsx(Upset_genes_df, file.path(PATH, "Dataset_2", "4_Integration_results", "Upset_genes.xlsx"))
 
 
 #####
@@ -163,19 +174,8 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
 
 ## Importing files
 
-#meth25p <- choice at the beginning
-dds <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/1_RNA-Seq/dds.rds")
-meth25p <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/meth25p.csv")
-sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/1_RNA-Seq/DE_results.csv")
-names(sign_DE)[names(sign_DE) == "hugo_symbol"] <- "SYMBOL"
-
-#This will be different for the different lists:
-M1_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met1.csv")
-M2_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met2.csv")
-M3_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met3.csv")
-M4_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met4.csv")
-M5_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met5.csv")
-
+#meth25p, sign_DE, M1-5_df already imported. Only missing dds:
+dds <- readRDS(file.path(PATH, "Dataset_2", "1_RNA-Seq", "dds.rds"))
 
 ##Methylation: Creating the DM matrix:
 # Selecting columns numCs and numTs by names
@@ -510,23 +510,11 @@ create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataf
 }
 
 
+### 1. Matrix/dataframes creation ###
 
-### 1. Importing files and matrix/dataframes creation ###
+##All files imported at the beginning of the script
 
-##Importing files
-
-#Già chiamati! Commento
-#meth25p <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/2_BS-Seq/meth25p.csv")
-#sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/1_RNA-Seq/DE_results.csv")
-#sign_DE <- sign_DE %>% dplyr::rename("SYMBOL" = hugo_symbol)
-
-#This will be different for the different lists:
-M1_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met1.csv")
-M2_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met2.csv")
-M3_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met3.csv")
-M4_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met4.csv")
-M5_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/3_Benchmark/DM_sites_Met5.csv")
-
+#Import già chiamati all'inizio chiamati! Commento
 
 ##Methylation: Creating the DM matrix:
 # Selecting columns numCs and numTs by names
@@ -626,9 +614,8 @@ ylims <- c(-FCmax, FCmax)
 gg_list <- list()
 for(m in seq_along(Method_final_df)) {
   gg_list[[m]] <- ggplot(Method_final_df[[m]], aes(x = Mv, y = log2FC)) +
-    geom_point(alpha = 0.5) +
-    coord_cartesian(xlim = xlims, ylim = ylims) +
     geom_point(data = Method_final_df[[m]], color = "red") +
+    coord_cartesian(xlim = xlims, ylim = ylims) +
     geom_hline(yintercept = 0) +
     geom_vline(xintercept = 0) +
     theme_minimal() +
@@ -636,14 +623,15 @@ for(m in seq_along(Method_final_df)) {
 }
 
 grid <- plot_grid(plotlist = gg_list, nrow = 2, ncol = 3)
+print(grid)
 
 #Exporting the Method_df list
-saveRDS(Method_final_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Method_final_df.rds")
+saveRDS(Method_final_df, file.path(PATH, "Dataset_2", "4_Integration_results", "Method_final_df.rds"))
 
 ## Writing outputs
 Stats_table <- rbind(inters_table, Pip1_table, quadrant_table)
 Stats_table$metric <- rownames(Stats_table)
 Stats_table <- Stats_table[ , c("metric", setdiff(names(Stats_table), "metric"))]  # Puts "metric" as first column
-write.csv(Stats_table, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_2/4_Integration_results/Stats_table.csv", row.names = FALSE)
+write.csv(Stats_table, file.path(PATH, "Dataset_2", "4_Integration_results", "Stats_table.csv"), row.names = FALSE)
 
 dev.off()

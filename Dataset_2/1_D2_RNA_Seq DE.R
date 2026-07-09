@@ -134,7 +134,6 @@ dds_exp <- dds   #I'll work on a parallel dds, and modify only this for the expo
 
 #Stripping version
 rownames(dds_exp) <- sub("\\.\\d+$", "", rownames(dds_exp))
-gene_map$ensembl_id <- sub("\\.\\d+$", "", gene_map$ensembl_id)
 
 #Changing the dds row names with SYMBOLS
 new_names <- gene_map$hugo_symbol[
@@ -249,12 +248,6 @@ DE_res <- merge(DE_res, gene_map,
                 by.x = "ENSEMBL",
                 by.y = "ensembl_id",
                 all.x = TRUE)
-
-#Removing duplicates (there are some, as shown by "sum(duplicated(sign_DE_res$hugo_symbol))")
-DE_res <- DE_res %>%
-   group_by(hugo_symbol) %>%
-   slice_max(order_by = abs(log2FoldChange), n = 1, with_ties = FALSE) %>%
-   ungroup()
 
 sign_DE_res <- DE_res %>% filter(padj < 0.01 & abs(log2FoldChange) > 1)
 #Exporting results

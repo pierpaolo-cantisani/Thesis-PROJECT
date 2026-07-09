@@ -12,10 +12,11 @@ wgbs/
 GSM*
 GSE*
 *.tar
-*.rds
 *.bgz.tbi
 *.bgz
 *.sf
+*.rds
+!sessionInfo*
 #Results heavy files
 DE_results.csv
 meth25p.csv
@@ -24,7 +25,6 @@ stats_table.csv
 RNAseq_universe.csv
 M_CpG_matrix.csv
 Method_final_df.xlsx
-!session_info*
 Upset_genes.xlsx
 ground_truth.tsv
 sign_DM.csv

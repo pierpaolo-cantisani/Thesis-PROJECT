@@ -27,6 +27,8 @@ Method_final_df.xlsx
 !session_info*
 Upset_genes.xlsx
 ground_truth.tsv
+sign_DM.csv
+DM_sites_D3.csv
 #Others
 Metadata_from_Paper.xlsx
 full_qc_report*

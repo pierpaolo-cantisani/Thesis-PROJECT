@@ -664,7 +664,9 @@ recall  <- mean(eqtm_keys %in% m2q$coord_key[m2q$padj < 0.05 & m2q$rho < 0])  # 
 # fallout sulle both-non-eqtm:
 both_keys    <- M2_df$coord_key[M2_df$SYMBOL %in% sign_DE$SYMBOL]
 noneqtm_keys <- setdiff(both_keys, eqtm_keys)
-fallout <- mean(noneqtm_keys %in% m2q$coord_key[m2q$padj < 0.05]) # % dei DE DM che esce statisticamente significativo ERRONEAMENTE
+fallout <- mean(noneqtm_keys %in% m2q$coord_key[m2q$padj < 0.05]) # % dei DE DM che esce statisticamente significativo ERRONEAMENTE rispetto 
+fdr <- length(setdiff(m2q$coord_key[m2q$padj < 0.05], eqtm_keys))/(length(setdiff(m2q$coord_key[m2q$padj < 0.05], eqtm_keys)) + length(eqtm_keys))
+
 
 #Obtaining stats (M2: CHIPseeker is the default for this + ctrl dataset)
 all_cpgs <- Output_bench$value[Output_bench$metric == "CpG sites"]
@@ -675,10 +677,10 @@ dm_only_cpg <- sum(!(M2_df$SYMBOL %in% sign_DE$SYMBOL))
 
 Output_final <- rbind(Output_bench, 
                       data.frame(metric = c("DM (any)", "both DE&DM", "dm_only", "q1", "q2", "q3", "q4",
-                                            "recall eQTM (ref=1)", "fallout eQTM (ref<0.05)"), 
+                                            "recall eQTM (ref=1)", "fallout eQTM (ref<0.05)", "fdr eQTM (no ref)"), 
                                  value = c(DM_n/all_cpgs, DE_DM_n/all_cpgs, dm_only_cpg/all_cpgs, quadrant_table["q1", "M2"], 
                                            quadrant_table["q2", "M2"], quadrant_table["q3", "M2"], quadrant_table["q4", "M2"],
-                                           recall, fallout)))
+                                           recall, fallout, fdr)))
 
 #Output excel:
-write.csv(Output_final, file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_4.csv"))
+write.csv(Output_final, file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_4.csv"), row.names = FALSE)

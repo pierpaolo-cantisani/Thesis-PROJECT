@@ -149,7 +149,7 @@ cpg$strand <- "+"    # single-strand projection (destranded CpGs)
 stopifnot(!any(duplicated(paste(cpg$chr, cpg$pos))))   # closes the diagnosis: must hold
 
 ## ------------------------- 3. M2: ChIPseeker annotatePeak ------------------
-txdb <- makeTxDbFromGFF(gtf_path, format = "gtf")
+txdb <- txdbmaker::makeTxDbFromGFF(gtf_path, format = "gtf")
 GR_data <- GRanges(cpg$chr, IRanges(cpg$pos, cpg$pos), strand = cpg$strand)
 peakAnno <- annotatePeak(GR_data, tssRegion = tss_region, TxDb = txdb, annoDb = "org.Hs.eg.db")
 pa <- as.data.frame(peakAnno)

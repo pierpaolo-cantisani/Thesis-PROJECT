@@ -20,7 +20,7 @@ DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for 
 
 #Ref
 gtf_file <- file.path(PATH, "references", "gencode.v49.annotation.gtf.gz")
-# 
+ 
 txdb <- makeTxDbFromGFF(
   gtf_file,
   format = "gtf"
@@ -29,7 +29,7 @@ txdb <- makeTxDbFromGFF(
 #Creating list for graphs and table
 graph_list <- list()
 Stats_region <- list()
-
+DM_ann_list <- list()
 
 for(METHOD in 1:5){
   
@@ -55,6 +55,7 @@ for(METHOD in 1:5){
                            annoDb    = "org.Hs.eg.db")
   DM_ann_df <- as.data.frame(peakAnno)
   
+  DM_ann_list[[METHOD]] <- DM_ann_df
   
   
   ### Region Analysis ###
@@ -238,18 +239,18 @@ coarse_region <- function(x) {
   )
 }
 
-# per ciascun metodo: vettore delle annotationi per-CpG.
-# ADATTA 'annotation_col': è la colonna con la stringa ChIPseeker (spesso $annotation
-# nel data.frame di as.data.frame(annotatePeak(...))).
-region_perc <- sapply(Method_annotated_list, function(df) {
+# For each method: per-CpG annotation vector.
+region_perc <- sapply(DM_ann_list, function(df) {
   reg <- factor(coarse_region(df$annotation), levels = region_levels)
-  round(prop.table(table(reg)) * 100, 2)
+  round(prop.table(table(reg)), 3)
 })
+colnames(region_perc) <- c("M1","M2","M3","M4","M5")
 
 region_perc   # matrice: 7 righe (regioni) x 5 colonne (M1..M5)
 
 Final_output <- rbind(Final_output,
-                      metric = c("3UTR", "5UTR", "downstream", "exon", "intergenic", "intron", "promoter"),
-                      value = c(region_perc["3UTR", "M2"], region_perc["5UTR", "M2"], region_perc["downstream", "M2"], region_perc["exon", "M2"], region_perc["intergenic", "M2"], region_perc["intron", "M2"], region_perc["promoter", "M2"])
-)
+                      data.frame(metric = c("3UTR", "5UTR", "downstream", "exon", "intergenic", "intron", "promoter"),
+                                 value = c(region_perc["3UTR", "M2"], region_perc["5UTR", "M2"], region_perc["downstream", "M2"], 
+                                           region_perc["exon", "M2"], region_perc["intergenic", "M2"], region_perc["intron", "M2"], region_perc["promoter", "M2"])
+                      ))
 write_xlsx(Final_output, file.path(PATH, "Dataset_0", "Ground Truth", "Final_output_for_comparison.xlsx"))

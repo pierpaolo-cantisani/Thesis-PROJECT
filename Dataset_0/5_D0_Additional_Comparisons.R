@@ -227,7 +227,7 @@ for(METHOD in 1:5) {
   # hyper-down
   N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
   m <- as.numeric(length(hypo_int_down_DM$SYMBOL) + length(hyper_int_down_DM$SYMBOL))  # All down intersecting genes
-  k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hypo intersecting genes
+  k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hyper intersecting genes
   q <- as.numeric(length(hyper_int_down_DM$SYMBOL))                                    # hypo-down intersecting genes
   hyp_down_hyper <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
   
@@ -450,7 +450,7 @@ options(scipen = 999)
 final_df <- as.data.frame(Data_list)
 row.names(final_df) <- c("Sign of inters (padj)", 
                          "All DM up (padj)", "DM ∩ DE DM up (padj)", "M ∩ DE vs All DM up (padj)",
-                         "All DM down (padj)", "DM ∩ DE DM down (padj)", "M ∩ DE vs All DM down (padj)",
+                         "All DM down (padj)", "DM ∩ DE DM down (padj)", "DM ∩ DE vs All DM down (padj)",
                          "Hypo-up (padj)", "Hypo-down (padj)", "Hyper-up (padj)", "Hyper-down (padj)",
                          "meth Spear (rho)", "meth Spear (padj)", 
                          "Multi DM genes", "Multi DM ∩ DE (padj)",

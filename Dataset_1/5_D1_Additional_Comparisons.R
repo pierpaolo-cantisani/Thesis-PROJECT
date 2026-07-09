@@ -444,7 +444,7 @@ options(scipen = 999)
 final_df <- as.data.frame(Data_list)
 row.names(final_df) <- c("Sign of inters (padj)", 
                          "All DM up (padj)", "DM ∩ DE DM up (padj)", "M ∩ DE vs All DM up (padj)",
-                         "All DM down (padj)", "DM ∩ DE DM down (padj)", "M ∩ DE vs All DM down (padj)",
+                         "All DM down (padj)", "DM ∩ DE DM down (padj)", "DM ∩ DE vs All DM down (padj)",
                          "Hypo-up (padj)", "Hypo-down (padj)", "Hyper-up (padj)", "Hyper-down (padj)",
                          "meth Spear (rho)", "meth Spear (padj)", 
                          "Multi DM genes", "Multi DM ∩ DE (padj)",

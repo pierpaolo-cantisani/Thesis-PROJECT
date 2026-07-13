@@ -48,14 +48,25 @@ library(cowplot)
 # Significance threshold: padj < 0.05.
 
 
+##FUNCTIONS
+
+compute_hypergeom_safe <- function(q, m, N_val, k) {
+  if (N_val == 0 || k == 0) return(NA_real_)
+  phyper(q - 1, m, N_val - m, k, lower.tail = FALSE)
+}
+
+
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
+
+
 ### 0. Importing DE genes ###
 #Importing RNA-Seq DE genes
-DE_results <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/DE_results.csv")
+DE_results <- read.csv(file.path(PATH, "Dataset_3", "1_RNA-Seq", "DE_results.csv"))
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
 ## Obtaining the universe N: 
 #Importing RNA-seq universe (all genes considered for the DESeq2 analysis)
-RNAseq_universe <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/RNAseq_universe.csv", col.names = c("SYMBOL", "log2FoldChange", "padj"))
+RNAseq_universe <- read.csv(file.path(PATH, "Dataset_3", "1_RNA-Seq", "RNAseq_universe.csv"), col.names = c("SYMBOL", "log2FoldChange", "padj"))
 
 ## Choosing "universe" as the RNAseq_universe. So that the METHOD's association can theorically connect to any of those genes.
 universe <- RNAseq_universe$SYMBOL
@@ -76,7 +87,7 @@ for(METHOD in 1:5) {
   ##### CODE START: ##### 
   
   #Importing DM METHOD lists:
-  DM_sites <- read.csv(sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met%d.csv", METHOD))
+  DM_sites <- read.csv(sprintf(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met%d.csv"), METHOD))
   DM_genes <- unique(DM_sites$SYMBOL)
   
   DM_genes_univ <- unique(intersect(DM_sites$SYMBOL, universe))
@@ -95,13 +106,15 @@ for(METHOD in 1:5) {
   k <- as.numeric(length(DE_genes))                         # DE genes                        
   q <- as.numeric(length(intersect_genes))                  # intersecting genes
   
-  hyp_intersect <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_intersect <- compute_hypergeom_safe(q, m, N, k)
   
   
   
   ### Exploring trends ###
   
   ### 2: Do intersected genes have a trend towards up/down regulation? ###
+  
+
   
   #2.1: UPREGULATION
   DE_up <- DE_results %>% filter(log2FoldChange > 0)
@@ -119,7 +132,7 @@ for(METHOD in 1:5) {
   k <- as.numeric(length(intersect_genes))                  # all intersected DM genes
   q <- as.numeric(length(intersect_up_genes))               # upregulated intersected DM genes
   
-  hyp_up <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_up <- compute_hypergeom_safe(q, m, N, k)
   
   
   ## But what if all DM genes are significantly enriched for upregulation? If that is the case this result is less interesting. 
@@ -136,7 +149,7 @@ for(METHOD in 1:5) {
   k <- as.numeric(length(DM_genes_univ))                    # all DM genes (inters univ)
   q <- as.numeric(length(DM_up_genes))                      # upregulated DM genes
   
-  hyp_DM_up <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_DM_up <- compute_hypergeom_safe(q, m, N, k)
   
   
   ## The next question is: is the DM ∩ DE case significantly more upregulated than all DM?
@@ -148,7 +161,7 @@ for(METHOD in 1:5) {
   k <- as.numeric(length(intersect_genes))                  # all intersected DM genes
   q <- as.numeric(length(intersect_up_genes))               # upregulated intersected DM genes
   
-  hyp_fin_up <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_fin_up <- compute_hypergeom_safe(q, m, N, k)
   
   
   
@@ -166,21 +179,21 @@ for(METHOD in 1:5) {
   m <- as.numeric(length(all_down$SYMBOL))          # all downregulated genes in universe
   k <- as.numeric(length(DM_genes_univ))            # all DM genes (inters univ)
   q <- as.numeric(length(DM_down_genes))            # downregulated DM genes
-  hyp_DM_down <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_DM_down <- compute_hypergeom_safe(q, m, N, k)
   
   # Hypergeometric test: are DM ∩ DE genes enriched for downregulation?
   N <- as.numeric(length(DE_genes))                 # universe: all DE genes
   m <- as.numeric(length(DE_down$SYMBOL))           # all DE down genes
   k <- as.numeric(length(intersect_genes))          # all intersected DM genes
   q <- as.numeric(length(intersect_down_genes))     # downregulated intersected DM genes
-  hyp_down <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_down <- compute_hypergeom_safe(q, m, N, k)
   
   # Hypergeometric test: is DM ∩ DE more downregulated than all relevant DM?
   N <- as.numeric(length(DM_genes_univ))            # all DM genes (inters univ)
   m <- as.numeric(length(DM_down_genes))            # all DM downregulated genes (also non DE)
   k <- as.numeric(length(intersect_genes))          # all intersecting genes
   q <- as.numeric(length(intersect_down_genes))     # all downregulated intersected genes
-  hyp_fin_down <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_fin_down <- compute_hypergeom_safe(q, m, N, k)
   
   
   
@@ -203,25 +216,25 @@ for(METHOD in 1:5) {
   m <- as.numeric(length(hypo_int_up_DM$SYMBOL) + length(hyper_int_up_DM$SYMBOL))      # All up intersecting genes
   k <- as.numeric(length(hypo_int_DM$SYMBOL))                                          # All hypo intersecting genes
   q <- as.numeric(length(hypo_int_up_DM$SYMBOL))                                       # hypo-up intersecting genes
-  hyp_up_hypo <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_up_hypo <- compute_hypergeom_safe(q, m, N, k)
   # hypo-down
   N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
   m <- as.numeric(length(hypo_int_down_DM$SYMBOL) + length(hyper_int_down_DM$SYMBOL))  # All down intersecting genes
   k <- as.numeric(length(hypo_int_DM$SYMBOL))                                          # All hypo intersecting genes
   q <- as.numeric(length(hypo_int_down_DM$SYMBOL))                                     # hypo-down intersecting genes
-  hyp_down_hypo <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_down_hypo <- compute_hypergeom_safe(q, m, N, k)
   # hyper-up
   N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
   m <- as.numeric(length(hypo_int_up_DM$SYMBOL) + length(hyper_int_up_DM$SYMBOL))      # All up intersecting genes
   k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hyper intersecting genes
   q <- as.numeric(length(hyper_int_up_DM$SYMBOL))                                      # hyper-up intersecting genes
-  hyp_up_hyper <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_up_hyper <- compute_hypergeom_safe(q, m, N, k)
   # hyper-down
   N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
   m <- as.numeric(length(hypo_int_down_DM$SYMBOL) + length(hyper_int_down_DM$SYMBOL))  # All down intersecting genes
   k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hypo intersecting genes
   q <- as.numeric(length(hyper_int_down_DM$SYMBOL))                                    # hypo-down intersecting genes
-  hyp_down_hyper <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_down_hyper <- compute_hypergeom_safe(q, m, N, k)
   
   
   ##! Duplicates were not cleaned: this is wanted, as different sites on the same gene may have different trends.
@@ -230,35 +243,39 @@ for(METHOD in 1:5) {
   
   
   
-  ### 3: The more the sites are differentially methylated (in magnitude), the more the gene is up/down regulated? (Correlation between magnitude of methyl and up/down regulation) ###
-  
-  ### 3: The more the sites are differentially methylated (in magnitude), the more the gene is up/down regulated? (Correlation between magnitude of methyl and up/down regulation) ###
+  ### 3: The more the sites are differentially methylated (in magnitude), the more the gene is up/down regulated? ###
   
   #Considering unique genes: meth will be the mean of the sites
   #Using all of the DM genes (in the universe), not the intersection (the intersection will be then highlighted in the graph)
-  DM_univ_df <-  merge(DM_sites[, c("coord_key", "deltaB", "SYMBOL")], RNAseq_universe[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
+  DM_univ_df <- merge(DM_sites[, c("coord_key", "deltaB", "SYMBOL")], 
+                      RNAseq_universe[, c("log2FoldChange", "padj", "SYMBOL")], by = "SYMBOL")
   
   #Importing M-values
-  Scalar_M <- read.xlsx("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Method_final_df.xlsx", sheet = sprintf("M%d", METHOD))
+  Scalar_M <- read.xlsx(file.path(PATH, "Dataset_3", "4_Integration_results", "Method_final_df.xlsx"), 
+                        sheet = sprintf("M%d", METHOD))
   
   gene_level_df <- Scalar_M %>%
     group_by(SYMBOL) %>% summarise(
       mean_M = mean(Mv),
       log2FC = unique(log2FC))
   
-  #Intersected
-  #all
-  all_cor <- cor.test(gene_level_df$mean_M, gene_level_df$log2FC, method = "spearman")
-  
-  ## Graph: Scatter plot ##
-  magnitude_list[[METHOD]] <- ggplot(gene_level_df, aes(x = mean_M, y = log2FC)) +
-    geom_point() +
-    geom_point(data = gene_level_df[gene_level_df$SYMBOL %in% intersect_df$SYMBOL, ], color = "red") +
-    geom_smooth(method = "lm") +
-    labs(title = sprintf("M%d: Body methylation vs Expression", METHOD),
-         x        = "Mean meth.diff per gene",
-         y        = "log2FC")
-  
+  ##Guard: se nrow < 3, Spearman non è statisticamente valido
+  if (nrow(gene_level_df) < 3) {
+    all_cor <- list(estimate = NA_real_, p.value = NA_real_)
+    magnitude_list[[METHOD]] <- ggplot() + 
+      labs(title = sprintf("M%d: no DE-DM overlap (n=%d)", METHOD, nrow(gene_level_df)))
+  } else {
+    all_cor <- cor.test(gene_level_df$mean_M, gene_level_df$log2FC, method = "spearman")
+    
+    ## Graph: Scatter plot ##
+    magnitude_list[[METHOD]] <- ggplot(gene_level_df, aes(x = mean_M, y = log2FC)) +
+      geom_point() +
+      geom_point(data = gene_level_df[gene_level_df$SYMBOL %in% intersect_df$SYMBOL, ], color = "red") +
+      geom_smooth(method = "lm") +
+      labs(title = sprintf("M%d: Body methylation vs Expression", METHOD),
+           x        = "Mean deltaB per gene",
+           y        = "log2FC")
+  }
   
   
   
@@ -282,7 +299,7 @@ for(METHOD in 1:5) {
   m <- as.numeric(length(intersect_genes))                    # all intersecting DM DE genes
   k <- as.numeric(length(multi_DM_genes))                     # genes with 2 or more DM sites
   q <- as.numeric(length(multi_intersect_genes))              # intersecting DM DE genes with 2 or more DM sites
-  hyp_multi <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_multi <- compute_hypergeom_safe(q, m, N, k)
   
   
   ## Graph: Probability of being DE depending on number of DM sites ##
@@ -367,45 +384,46 @@ for(METHOD in 1:5) {
     left_join(RNAseq_universe, by = "SYMBOL") %>%
     filter(!is.na(log2FoldChange))
   
-  # Spearman correlation: number of DM sites vs magnitude of regulation
-  sites_abs_fc_cor <- cor.test(sites_fc_df$n_DM_sites, abs(sites_fc_df$log2FoldChange), method = "spearman")
+  if (nrow(sites_fc_df) < 3) {
+    sites_abs_fc_cor <- list(estimate = NA_real_, p.value = NA_real_)
+    sites_fc_cor     <- list(estimate = NA_real_, p.value = NA_real_)
+    scatter_list[[METHOD]] <- ggplot() + 
+      labs(title = sprintf("M%d: no DM sites in the RNA-Seq universe (n=%d)", METHOD, nrow(sites_fc_df)))
+  } else {
+    sites_abs_fc_cor <- cor.test(sites_fc_df$n_DM_sites, abs(sites_fc_df$log2FoldChange), method = "spearman")
+    sites_fc_cor <- cor.test(sites_fc_df$n_DM_sites, sites_fc_df$log2FoldChange, method = "spearman")
+    ## Graph: Scatter plot of number of DM sites vs log2FC ##
+    jit <- position_jitter(width = 0.12, height = 0, seed = 42)
+    #Magnitude
+    p_sites_fc_abs <- ggplot(sites_fc_df, aes(x = n_DM_sites, y = abs(log2FoldChange))) +
+      geom_point(alpha = 0.7, position = jit) +
+      geom_point(data     = sites_fc_df[sites_fc_df$SYMBOL %in% intersect_df$SYMBOL, ],
+                 color    = "red", alpha = 0.8,
+                 position = jit) +
+      geom_smooth(method = "lm") +
+      labs(title = sprintf("M%d: Correlation # DM sites vs expr (magnitude)", METHOD),
+           x = "Number of DM sites",
+           y = "log2FoldChange") +
+      theme_classic(base_size = 13) +
+      theme(plot.title = element_text(face = "bold"))
+    #Direction
+    p_sites_fc <- ggplot(sites_fc_df, aes(x = n_DM_sites, y = log2FoldChange)) +
+      geom_point(alpha = 0.7, position = jit) +
+      geom_point(data     = sites_fc_df[sites_fc_df$SYMBOL %in% intersect_df$SYMBOL, ],
+                 color    = "red", alpha = 0.8,
+                 position = jit) +
+      geom_smooth(method = "lm") +
+      labs(title = sprintf("M%d: Correlation # DM sites vs expr (direction)", METHOD),
+           x = "Number of DM sites",
+           y = "log2FoldChange") +
+      theme_classic(base_size = 13) +
+      theme(plot.title = element_text(face = "bold"))
+    
+    scatter_list[[METHOD]] <- plot_grid(p_sites_fc_abs, p_sites_fc, nrow = 2, ncol = 1)
+  }
   
-  # Spearman correlation: number of DM sites vs signed log2FC
-  sites_fc_cor <- cor.test(sites_fc_df$n_DM_sites, sites_fc_df$log2FoldChange, method = "spearman")
   
-  
-  
-  ## Graph: Scatter plot of number of DM sites vs log2FC ##
-  jit <- position_jitter(width = 0.12, height = 0, seed = 42)
-  #Magnitude
-  p_sites_fc_abs <- ggplot(sites_fc_df, aes(x = n_DM_sites, y = abs(log2FoldChange))) +
-    geom_point(alpha = 0.7, position = jit) +
-    geom_point(data     = sites_fc_df[sites_fc_df$SYMBOL %in% intersect_df$SYMBOL, ],
-               color    = "red", alpha = 0.8,
-               position = jit) +
-    geom_smooth(method = "lm") +
-    labs(title = sprintf("M%d: Correlation # DM sites vs expr (magnitude)", METHOD),
-         x = "Number of DM sites",
-         y = "log2FoldChange") +
-    theme_classic(base_size = 13) +
-    theme(plot.title = element_text(face = "bold"))
-  #Direction
-  p_sites_fc <- ggplot(sites_fc_df, aes(x = n_DM_sites, y = log2FoldChange)) +
-    geom_point(alpha = 0.7, position = jit) +
-    geom_point(data     = sites_fc_df[sites_fc_df$SYMBOL %in% intersect_df$SYMBOL, ],
-               color    = "red", alpha = 0.8,
-               position = jit) +
-    geom_smooth(method = "lm") +
-    labs(title = sprintf("M%d: Correlation # DM sites vs expr (direction)", METHOD),
-         x = "Number of DM sites",
-         y = "log2FoldChange") +
-    theme_classic(base_size = 13) +
-    theme(plot.title = element_text(face = "bold"))
-  
-  scatter_list[[METHOD]] <- plot_grid(p_sites_fc_abs, p_sites_fc, nrow = 2, ncol = 1)
-  
-  
-  
+  ## Correction
   #Multiple test correction: before output
   pvals_raw <- c(
     hyp_intersect    = hyp_intersect,
@@ -431,9 +449,9 @@ for(METHOD in 1:5) {
   
   ##Final output data:
   Data_list[[sprintf("M%d", METHOD)]] <- c(
-    pvals_adj["hyp_intersect"],
-    pvals_adj["hyp_up"], pvals_adj["hyp_DM_up"], pvals_adj["hyp_fin_up"],
-    pvals_adj["hyp_down"], pvals_adj["hyp_DM_down"], pvals_adj["hyp_fin_down"],
+    pvals_adj["hyp_intersect"],  pvals_adj["hyp_DM_up"],
+    pvals_adj["hyp_up"], pvals_adj["hyp_fin_up"],
+    pvals_adj["hyp_DM_down"], pvals_adj["hyp_down"], pvals_adj["hyp_fin_down"],
     pvals_adj["hyp_up_hypo"], pvals_adj["hyp_down_hypo"],
     pvals_adj["hyp_up_hyper"], pvals_adj["hyp_down_hyper"],
     all_cor$estimate, pvals_adj["all_cor_p"],
@@ -441,15 +459,16 @@ for(METHOD in 1:5) {
     sites_abs_fc_cor$estimate, pvals_adj["sites_abs_fc_p"],
     sites_fc_cor$estimate, pvals_adj["sites_fc_p"]
   )
-} 
+}
+
 
 #Before output, to improve table visualization:
 options(scipen = 999)
 
 #Creating the Stats table
 final_df <- as.data.frame(Data_list)
-row.names(final_df) <- c("Sign of inters (padj)", 
-                         "All DM up (padj)", "DM ∩ DE DM up (padj)", "M ∩ DE vs All DM up (padj)",
+row.names(final_df) <- c("Sign of inters (padj)", "All DM up (padj)",
+                         "DM ∩ DE DM up (padj)", "DM ∩ DE vs All DM up (padj)",
                          "All DM down (padj)", "DM ∩ DE DM down (padj)", "DM ∩ DE vs All DM down (padj)",
                          "Hypo-up (padj)", "Hypo-down (padj)", "Hyper-up (padj)", "Hyper-down (padj)",
                          "meth Spear (rho)", "meth Spear (padj)", 
@@ -458,7 +477,7 @@ row.names(final_df) <- c("Sign of inters (padj)",
                          "sites vs log2FC (rho)", "sites vs log2FC (padj)")
 
 #Importing old Stats table:
-Stats_table <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Stats_table.csv")
+Stats_table <- read.csv(file.path(PATH, "Dataset_3", "4_Integration_results", "Stats_table.csv"))
 rownames(Stats_table) <- Stats_table$metric
 Stats_table$metric <- NULL
 
@@ -472,11 +491,11 @@ Stats_table_final <- Stats_table_final[ , c("metric", setdiff(names(Stats_table_
 
 
 #Writing on file
-write.xlsx(Stats_table_final, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Stats_table_final.xlsx", rowNames = FALSE)
+write.xlsx(Stats_table_final, file.path(PATH, "Dataset_3", "4_Integration_results", "Stats_table_final.xlsx"), rowNames = FALSE)
 
 
 ##Plotting graphs:
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Additional_comparison D1.pdf", height = 10, width = 15)
+pdf(file.path(PATH, "Dataset_3", "4_Integration_results", "Additional_comparison D3.pdf"), height = 10, width = 15)
 
 plot_grid(plotlist = magnitude_list, nrow = 2, ncol= 3)
 plot_grid(plotlist = num_barplot_list, nrow = 2, ncol= 3)

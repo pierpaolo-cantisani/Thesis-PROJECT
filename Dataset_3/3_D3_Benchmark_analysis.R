@@ -7,10 +7,11 @@ library(GenomicFeatures)
 library(GenomicRanges)
 library(rGREAT)
 
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 ### Importing data ###
 ##Importing myDiff
-sign_DM <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/2_BS-Seq/sign_DM.csv")
+sign_DM <- read.csv(file.path(PATH, "Dataset_3", "2_BS-Seq", "sign_DM.csv"))
 #General df
 general_df <- sign_DM[, c("seqnames", "start", "deltaB")]
 general_df$coord_key <- paste(general_df$seqnames, general_df$start, sep="_")
@@ -41,7 +42,7 @@ write_output_file <- function(general_df, specific_df, Method_n) {
                      by = "coord_key",
                      sort = TRUE)
   
-  file_name = sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met%d.csv", Method_n)
+  file_name = sprintf(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met%d.csv"), Method_n)
   write.csv(output_df, file = file_name, row.names = FALSE)
   return(output_df)
 }
@@ -50,7 +51,7 @@ write_output_file <- function(general_df, specific_df, Method_n) {
 ## annotateWithGeneParts() associate each site to the nearest TSS, with no hierarchy nor range limit
 
 ## Importing reference (RefSeq hg38)
-gene.obj=readTranscriptFeatures("C:/Users/pierp/Desktop/THESIS PROJECT/references/refseq.hg38.bed")
+gene.obj=readTranscriptFeatures(file.path(PATH, "references", "refseq.hg38.bed"))
 ## Annotation
 diffCpGann <- annotateWithGeneParts(GR_data, gene.obj)
 
@@ -153,7 +154,7 @@ M4 <- write_output_file(general_df, DM_sites_M4, 4)
 #####
 ##### METHOD 5: rGREAT (-5 kb, 1 kb) plus extension until nearest gene up to 1 MB in both directions #####
 
-TSS_map <- extendTSS(genes_GR, gene_id_type = "ENTREZ", 
+TSS_map <- extendTSS(annoData, gene_id_type = "ENTREZ", 
                      mode = "basalPlusExt", 
                      extend_from = "TSS", 
                      basal_upstream = 5000, 
@@ -161,14 +162,14 @@ TSS_map <- extendTSS(genes_GR, gene_id_type = "ENTREZ",
                      extension = 1000000)
 
 #Now finding overlaps between CpG and the map
-hits <- findOverlaps(GR_data, TSS_map)
+hits_M5 <- findOverlaps(GR_data, TSS_map)
 
 #Matching TSS_map and tss_points, in order to use tss_maps to calculate distanceToTSS:
 matched_idx <- match(names(TSS_map)[subjectHits(hits_M5)], names(tss_points))
 
-great_df <- data.frame(seqnames      = as.character(seqnames(GR_data))[queryHits(hits)],
-                       start         = start(GR_data)[queryHits(hits)],
-                       feature       = names(TSS_map)[subjectHits(hits)],  # gene_id ENTREZ
+great_df <- data.frame(seqnames      = as.character(seqnames(GR_data))[queryHits(hits_M5)],
+                       start         = start(GR_data)[queryHits(hits_M5)],
+                       feature       = names(TSS_map)[subjectHits(hits_M5)],  # gene_id ENTREZ
                        tss_start       = start(tss_points)[matched_idx],
                        tss_strand      = as.character(strand(tss_points))[matched_idx],
                        distanceToTSS   = distance(GR_data[queryHits(hits_M5)], tss_points[matched_idx])

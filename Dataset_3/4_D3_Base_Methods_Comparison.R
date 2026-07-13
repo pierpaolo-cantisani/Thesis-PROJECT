@@ -24,22 +24,32 @@ library(writexl)
 #         PIP2 chiede se la direzione dell'effetto disease è concorde tra le due omiche.
 
 
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Base_comparison D1.pdf")
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
+
+pdf(file.path(PATH, "Dataset_3", "4_Integration_results", "Base_comparison D3.pdf"))
+
+#Importing:
+#Importing RNA-Seq DE genes
+sign_DE <- read.csv(file.path(PATH, "Dataset_3", "1_RNA-Seq", "DE_results.csv"))
+sign_DE <- sign_DE %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
+
+#This will be different for the different lists:
+M1_df <- read.csv(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met1.csv"))
+M2_df <- read.csv(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met2.csv"))
+M3_df <- read.csv(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met3.csv"))
+M4_df <- read.csv(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met4.csv"))
+M5_df <- read.csv(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met5.csv"))
+
 
 ##### --- PIPELINE 0: Simple Intersection --- #####
 
-#Importing RNA-Seq DE genes
-sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/DE_results.csv")
-sign_DE <- sign_DE %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
-
-
-#Importing BS-Seq DM sites
+#Imserting BS-Seq DM sites into a list
 M_list <- list()
-M_list[[1]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met1.csv")
-M_list[[2]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met2.csv")
-M_list[[3]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met3.csv")
-M_list[[4]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met4.csv")
-M_list[[5]] <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met5.csv")
+M_list[[1]] <- M1_df
+M_list[[2]] <- M2_df
+M_list[[3]] <- M3_df
+M_list[[4]] <- M4_df
+M_list[[5]] <- M5_df
 
 
 inters_table <- sapply(seq_along(M_list), function(i) {
@@ -112,7 +122,7 @@ Upset_genes <- lapply(genes_by_region, function(g) {
 Upset_genes_df <- as.data.frame(Upset_genes, stringsAsFactors = FALSE, check.names = FALSE)
 colnames(Upset_genes_df) <- cate_names
 
-write_xlsx(Upset_genes_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Upset_genes.xlsx")
+write_xlsx(Upset_genes_df, file.path(PATH, "Dataset_3", "4_Integration_results", "Upset_genes.xlsx"))
 
 
 
@@ -162,23 +172,13 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
 
 ## Importing files
 
-#meth25p <- choice at the beginning
-dds <- readRDS("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/dds.rds")
-sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/DE_results.csv")
-names(sign_DE)[names(sign_DE) == "hugo_symbol"] <- "SYMBOL"
-
-#This will be different for the different lists:
-M1_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met1.csv")
-M2_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met2.csv")
-M3_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met3.csv")
-M4_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met4.csv")
-M5_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met5.csv")
-
+#Importing RNA-Seq data
+dds <- readRDS(file.path(PATH, "Dataset_3", "1_RNA-Seq", "dds.rds"))
 
 ##Methylation: Creating the DM matrix:
 
 # Obtaining the matrix for M-values (log2((numCs + 1) / (numTs + 1)))
-Matrix_Mv <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/2_BS-Seq/M_CpG_matrix.csv")
+Matrix_Mv <- read.csv(file.path(PATH, "Dataset_3", "2_BS-Seq", "M_CpG_matrix.csv"), check.names = FALSE)
 rownames(Matrix_Mv) <- Matrix_Mv[, 1]
 Matrix_Mv <- Matrix_Mv[, -1]
 Matrix_Mv <- as.matrix(Matrix_Mv)
@@ -188,6 +188,12 @@ Matrix_Mv <- as.matrix(Matrix_Mv)
 vst_dds <- vst(dds, blind = FALSE)
 vst_expr_matrix <- assay(vst_dds)
 
+# Reorder vst_expr_matrix from interleaved
+d0_cols  <- grep("_D0$",  colnames(vst_expr_matrix), value = TRUE)
+d28_cols <- grep("_D28$", colnames(vst_expr_matrix), value = TRUE)
+d0_cols  <- d0_cols[order(as.integer(sub("_D0$",  "", d0_cols)))]
+d28_cols <- d28_cols[order(as.integer(sub("_D28$", "", d28_cols)))]
+vst_expr_matrix <- vst_expr_matrix[, c(d0_cols, d28_cols)]
 
 ### 2.a Spearman Correlation Delta ###
 
@@ -230,6 +236,15 @@ message("CHECK PASSED")
 Spear_res_list <- list()
 Spear_padj_list <- list()
 for(m in seq_along(Matrix_exp)) {
+  #If there is no DE DM intersection, skip
+  if (nrow(Matrix_exp[[m]]) == 0) {
+    res <- data.frame(rho = numeric(0), pvalue = numeric(0),
+                      padj = numeric(0), SYMBOL = character(0))
+    Spear_res_list[[m]]  <- res
+    Spear_padj_list[[m]] <- res
+    next
+  }
+  
   res_t <- sapply(seq_len(nrow(Matrix_exp[[m]])), function (i) {
     corr <- cor.test(Matrix_Mval[[m]][i, ], Matrix_exp[[m]][i, ], method = 'spearman')
     c(rho = unname(corr$estimate), pvalue = corr$p.value)
@@ -251,20 +266,20 @@ names(Spear_padj_list) <- paste0("M", seq_along(Matrix_exp))
 
 #Subtracting the ctrl mean to ctrl samples and case mean to case samples
 #methylation
-ctl_mean <- rowMeans(Matrix_Mv[, 1:42, drop = FALSE])
-cas_mean <- rowMeans(Matrix_Mv[, 43:84, drop = FALSE])
+D0_mean <- rowMeans(Matrix_Mv[, 1:42, drop = FALSE])
+D28_mean <- rowMeans(Matrix_Mv[, 43:84, drop = FALSE])
 
 Matrix_Mv_Q <- Matrix_Mv
-Matrix_Mv_Q[, 1:42] <- Matrix_Mv_Q[, 1:42] - ctl_mean
-Matrix_Mv_Q[, 43:84] <- Matrix_Mv_Q[, 43:84] - cas_mean
+Matrix_Mv_Q[, 1:42] <- Matrix_Mv_Q[, 1:42] - D0_mean
+Matrix_Mv_Q[, 43:84] <- Matrix_Mv_Q[, 43:84] - D28_mean
 
 #expression
-ctl_vst_mean <- rowMeans(vst_expr_matrix[, 1:42, drop = FALSE])
-cas_vst_mean <- rowMeans(vst_expr_matrix[, 43:84, drop = FALSE])
+D0_vst_mean <- rowMeans(vst_expr_matrix[, 1:42, drop = FALSE])
+D28_vst_mean <- rowMeans(vst_expr_matrix[, 43:84, drop = FALSE])
 
 vst_expr_matrix_Q <- vst_expr_matrix
-vst_expr_matrix_Q[, 1:42] <- vst_expr_matrix_Q[, 1:42] - ctl_vst_mean
-vst_expr_matrix_Q[, 43:84] <- vst_expr_matrix_Q[, 43:84] - cas_vst_mean
+vst_expr_matrix_Q[, 1:42] <- vst_expr_matrix_Q[, 1:42] - D0_vst_mean
+vst_expr_matrix_Q[, 43:84] <- vst_expr_matrix_Q[, 43:84] - D28_vst_mean
 
 Matrix_exp_Q <- list()
 Matrix_exp_Q[[1]] <- create_DE_matrix(M1_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
@@ -287,6 +302,14 @@ Matrix_Mval_Q[[5]] <- create_DM_matrix(M5_df, Matrix_Mv_Q, Matrix_exp_Q[[5]])
 Spear_res_Q_list <- list()
 Spear_padj_Q_list <- list()
 for(m in seq_along(Matrix_exp_Q)) {
+  #If there is no DE DM intersection, skip
+  if (nrow(Matrix_exp_Q[[m]]) == 0) {
+    res <- data.frame(rho = numeric(0), pvalue = numeric(0),
+                      padj = numeric(0), SYMBOL = character(0))
+    Spear_res_Q_list[[m]]  <- res
+    Spear_padj_Q_list[[m]] <- res
+    next
+  }
   res_t <- sapply(seq_len(nrow(Matrix_exp_Q[[m]])), function (i) {
     corr <- cor.test(Matrix_Mval_Q[[m]][i, ], Matrix_exp_Q[[m]][i, ], method = 'spearman')
     c(rho = unname(corr$estimate), pvalue = corr$p.value)
@@ -495,31 +518,12 @@ create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataf
 
 ### 1. Importing files and matrix/dataframes creation ###
 
-##Importing files
-
-#sign DE genes will be needed later
-sign_DE <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/DE_results.csv")
-sign_DE <- sign_DE %>% dplyr::rename("SYMBOL" = hugo_symbol)
-
-#This will be different for the different lists:
-M1_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met1.csv")
-M2_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met2.csv")
-M3_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met3.csv")
-M4_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met4.csv")
-M5_df <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met5.csv")
-
-
-##Methylation: Creating the DM matrix:
-Matrix_Mv_2 <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/2_BS-Seq/M_CpG_matrix.csv")
-rownames(Matrix_Mv_2) <- Matrix_Mv_2[, 1]
-Matrix_Mv_2 <- Matrix_Mv_2[, -1]
-Matrix_Mv_2 <- as.matrix(Matrix_Mv_2)
+##Methylation: Matrix_Mv already created
 
 #Obtaining the delta matrix
-D0_mean <- rowMeans(Matrix_Mv_2[, 1:84, drop = FALSE])
-D28_mean <- rowMeans(Matrix_Mv_2[, 43:84, drop = FALSE])
+#D0_mean and D28 were already called in PIP 1
 
-Mean_Mv_df <- data.frame(coord_key = rownames(Matrix_Mv_2),
+Mean_Mv_df <- data.frame(coord_key = rownames(Matrix_Mv),
                          Mv_mean = D28_mean - D0_mean)
 
 
@@ -557,10 +561,17 @@ quadrant_enrichment <- sapply(Method_final_df, function(df) {
               .groups = "drop") %>%
     filter(Mv_med != 0, log2FC != 0)
   
-  q1 <- sum(gene_df$Mv > 0 & gene_df$log2FC > 0)
-  q2 <- sum(gene_df$Mv < 0 & gene_df$log2FC > 0)  # hypomethylated + up = expected
-  q3 <- sum(gene_df$Mv < 0 & gene_df$log2FC < 0)
-  q4 <- sum(gene_df$Mv > 0 & gene_df$log2FC < 0)  # hypermethylated + down = expected
+  #If there is no DE DM intersection, return NA
+  if (nrow(gene_df) == 0) {
+    return(c(expected_perc    = NA_real_,
+             odds_ratio       = NA_real_,
+             pvalue_quadrants = NA_real_))
+  }
+  
+  q1 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC > 0)
+  q2 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC > 0)  # hypo + up
+  q3 <- sum(gene_df$Mv_med < 0 & gene_df$log2FC < 0)
+  q4 <- sum(gene_df$Mv_med > 0 & gene_df$log2FC < 0)  # hyper + down
   
   expected_total <- q2 + q4
   unexpected_total <- q1 + q3
@@ -573,6 +584,7 @@ quadrant_enrichment <- sapply(Method_final_df, function(df) {
     odds_ratio = expected_total / unexpected_total, 
     pvalue_quadrants = p_bin_test)
 })
+
 quadrant_table <- as.data.frame(quadrant_enrichment)
 
 #Multiple test correction: BH
@@ -609,12 +621,12 @@ grid <- plot_grid(plotlist = gg_list, nrow = 2, ncol = 3)
 print(grid)
 
 #Exporting the Method_df list
-write_xlsx(Method_final_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Method_final_df.xlsx")
+write_xlsx(Method_final_df, file.path(PATH, "Dataset_3", "4_Integration_results", "Method_final_df.xlsx"))
 
 ## Writing outputs
 Stats_table <- rbind(inters_table, Pip1_table, quadrant_table)
 Stats_table$metric <- rownames(Stats_table)
 Stats_table <- Stats_table[ , c("metric", setdiff(names(Stats_table), "metric"))]  # Puts "metric" as first column
-write.csv(Stats_table, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Stats_table.csv", row.names = FALSE)
+write.csv(Stats_table, file.path(PATH, "Dataset_3", "4_Integration_results", "Stats_table.csv"), row.names = FALSE)
 
 dev.off()

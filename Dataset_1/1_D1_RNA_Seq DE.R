@@ -18,7 +18,7 @@ gtf_genes <- gtf[gtf$type == "gene"]
 gene_map <- data.frame(ensembl_id = gtf_genes$gene_id,
                        hugo_symbol = gtf_genes$gene_name)
 #Clean mapping
-#Maybe this is not needed, it's just to be sure there is a 1:1 mapping, and no NA.
+#Probably this is not needed, it's just to be sure there is a 1:1 mapping, and no NA.
 gene_map <- gene_map %>%
   distinct() %>%
   group_by(ensembl_id) %>%
@@ -39,7 +39,7 @@ tx2gene <- distinct(tx2gene)
 #Setting file directory
 setwd(file.path(PATH, "Dataset_1", "1_RNA-Seq"))
 
-## Downloading the count files
+## Importing the count files
 files <- c("rep_1_TB_quant/quant.sf", "rep_1_NI_quant/quant.sf", "rep_2_TB_quant/quant.sf",
            "rep_2_NI_quant/quant.sf", "rep_3_TB_quant/quant.sf", "rep_3_NI_quant/quant.sf",
            "rep_4_TB_quant/quant.sf", "rep_4_NI_quant/quant.sf", "rep_5_TB_quant/quant.sf",
@@ -65,9 +65,11 @@ metadata$replicate <- factor(metadata$replicate)
 
 
 ### 2. DE analisys: DESeq2 ###
+
 dds <- DESeqDataSetFromTximport(tx_matrix,
                                 colData = metadata,
                                 design = ~ replicate + infection)
+
 #Filtering: keeping only genes with at least 10 counts in half of the samples
 keep <- rowSums(counts(dds) >= 10) >= 6
 dds <- dds[keep, ]
@@ -79,7 +81,6 @@ dds <- DESeq(dds)
 ## Export: 
 #Before exporting the dds it's important to shift the names from ENSEMBL ID to SYMBOLS. This will be useful later.
 dds_exp <- dds   #I'll work on a parallel dds, and modify only this for the export
-
 
 
 #Stripping version
@@ -110,20 +111,20 @@ counts_norm <- assay(vst_dds)           #Extracting counts
 counts_norm <- counts_norm[rowVars(counts_norm) > 0, ]  #Deleting rows with variance = 0
 counts_norm_t <- t(counts_norm)         #The matrix is needed transposed for pca
 
-##PCA:
+## PCA:
 pca <- prcomp(counts_norm_t)
 summary(pca)
 
-##PCA graph:
+#PCA graph:
 #Creating the plot dataframe
 pca_df <- as.data.frame(pca$x[, 1:2])
 #Adding metadata information
 pca_df <- merge(pca_df, metadata, by = "row.names")
 pca_df$Row.names <- NULL
 
-#ggplot
+#plotting:
 ggplot(pca_df, aes(x = PC1, y = PC2, shape = replicate, color = infection)) +
-  geom_point(size = 3) +                                                                                    #Adds the data as points
+  geom_point(size = 3) +                                                                            #Adding the data as points
   labs(title = "Explorative analysis - PCA",
        x = paste0("PCA1 (", round(100 * summary(pca)$importance[2,1], 1), "% of the variance)"),    #Title and labels
        y = paste0("PCA2 (", round(100 * summary(pca)$importance[2,2], 1), "% of the variance)")) +
@@ -131,7 +132,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, shape = replicate, color = infection)) +
   geom_line(aes(group = replicate), color = "grey70", alpha = 0.4) + #Setting white background
   theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5)) +                   #Formatting title
   scale_shape_manual(values= c(15:19, 8)) +                                                         #Setting points shapes. From 15 on shapes are full inside
-  scale_color_manual(values = c("CTRL" = "red", "TB" ="darkblue"))                                     #Adding legend
+  scale_color_manual(values = c("CTRL" = "red", "TB" ="darkblue"))                                  #Adding legend
 
 
 ## Heatmap
@@ -160,7 +161,7 @@ pheat <- pheatmap(heatmap_matrix,
                   main = "Explorative analysis - Heatmap")
 
 
-##Boxplot for Sample
+## Boxplot for Sample
 #For the boxplot using the counts are needed in the "long" format: transforming
 counts_norm_long <- counts_norm %>% 
   as.data.frame() %>% 
@@ -177,17 +178,12 @@ ggplot(counts_norm_long, aes(x = Sample, y = expr)) +
        x = "Sample",
        y = "VST gene expression")
 
-## Results
-## PCA -> Strong Clustering for condition (infection). There is also a slight clustering for sample (on PCA2): paired design is correct.
-## Heatmap -> Confirms clustering seen for PCA
-## boxplot -> From the boxplot profiles it appears that: 1) Normalization was correctly done. 2) Overall expression is coherent among different samples: no sample is an anomaly. 
-## 3) All samples have an expected distribution of gene expression, (with a peak for housekeeping genes)  
-
 
 
 ### 4. Significant genes extraction and visualization ###
 
-##Extracting Differentially expressed genes (by adj_pvalue)
+## Extracting Differentially expressed genes (by adj_pvalue)
+
 #Considering the contrast on the condition: infection
 DE_res <- as.data.frame(results(dds, contrast = c("infection", "TB", "CTRL")))
 #Mapping the gene names as HUGO symbols
@@ -197,16 +193,16 @@ DE_res <- merge(DE_res, gene_map,
                 by.y = "ensembl_id",
                 all.x = TRUE)
 
-#Removing duplicates (there are some, as shown by "sum(duplicated(sign_DE_res$hugo_symbol))")
+#Removing duplicates (if there are some, tehey are shown by "sum(duplicated(sign_DE_res$hugo_symbol))")
 DE_res <- DE_res %>%
   group_by(hugo_symbol) %>%
   slice_max(order_by = abs(log2FoldChange), n = 1, with_ties = FALSE) %>%
   ungroup()
 
 sign_DE_res <- DE_res %>% filter(padj < 0.05 & abs(log2FoldChange) > 1)
+
 #Exporting results
 write.csv(sign_DE_res, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"), row.names = FALSE)
-
 
 #Exporting the universe
 RNAseq_universe <- DE_res[, c("hugo_symbol", "log2FoldChange", "padj")]
@@ -214,7 +210,7 @@ write.csv(RNAseq_universe, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "RNA
 
 
 
-##Visualization: volcano plot
+## Visualization: Volcano plot
 
 ggplot(RNAseq_universe, aes(x = log2FoldChange, y = -log10(padj))) +
   geom_point(alpha = 0.5) +
@@ -224,6 +220,6 @@ ggplot(RNAseq_universe, aes(x = log2FoldChange, y = -log10(padj))) +
                                     RNAseq_universe$padj < 0.05 & 
                                     abs(RNAseq_universe$log2FoldChange) > 1, ], color = "red") +
   theme_minimal() +
-  labs(title = "Volcano plot: infection", x = "log2 Fold Change", y = "-log10(adj pvalue)")
+  labs(title = "Volcano plot: DE analysis", x = "log2 Fold Change", y = "-log10(adj pvalue)")
 
 dev.off()

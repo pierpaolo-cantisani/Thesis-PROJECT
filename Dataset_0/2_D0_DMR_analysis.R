@@ -127,7 +127,7 @@ ggplot(myDiff_df, aes(x = meth.diff, y = -log10(qvalue))) +
                                      myDiff_df$qvalue < 0.01 & 
                                      abs(myDiff_df$meth.diff) > 25, ], color = "red") +
   theme_minimal() +
-  labs(title = "Volcano plot: D0 Differential methylation", x = "meth.diff", y = "-log10(adj pvalue)")
+  labs(title = "Volcano plot: DM analysis", x = "meth.diff", y = "-log10(adj pvalue)")
 
 
 

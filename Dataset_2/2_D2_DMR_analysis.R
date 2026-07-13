@@ -257,7 +257,7 @@ gg <- ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
   geom_vline(xintercept = c(-25, 25), linetype = "dashed", color = "blue") +
   geom_point(data = df_sig, color = "red") +
   theme_minimal() +
-  labs(title = sprintf("Volcano plot: D2 Differential methylation (n=%d shown, %d sig)",
+  labs(title = sprintf("Volcano plot: D2 DM analysis",
                        nrow(myDiff_df_plot), nrow(df_sig)),
        x = "meth.diff", y = "-log10(adj pvalue)")
 #print(gg)

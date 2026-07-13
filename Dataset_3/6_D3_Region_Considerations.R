@@ -12,9 +12,18 @@ library(openxlsx)
 
 ##! Metodi 1, 2 e 5 sono uguali. E metodi 3 e 4 sono sottoinsiemi di 1/2/5. Poco interessante
 
+##FUNCTIONS
+
+compute_hypergeom_safe <- function(q, m, N_val, k) {
+  if (N_val == 0 || k == 0) return(NA_real_)
+  phyper(q - 1, m, N_val - m, k, lower.tail = FALSE)
+}
+
+
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 #Importing DE genes
-DE_results <- read.csv("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/1_RNA-Seq/DE_results.csv")
+DE_results <- read.csv(file.path(PATH, "Dataset_3", "1_RNA-Seq", "DE_results.csv"))
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
 #Ref
@@ -28,7 +37,7 @@ Stats_region <- list()
 for(METHOD in 1:5){
   
   #Importing association df
-  DM_sites <- read.csv(sprintf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/3_Benchmark/DM_sites_Met%d.csv", METHOD))
+  DM_sites <- read.csv(sprintf(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met%d.csv"), METHOD))
   
   #Converting to GRanges
   DM_GR <- makeGRangesFromDataFrame(DM_sites,
@@ -82,42 +91,42 @@ for(METHOD in 1:5){
   m <- as.numeric(length(prom_genes))                           # prom DM genes
   k <- as.numeric(length(intersect_genes))                      # all intersecting DM genes
   q <- as.numeric(length(prom_inter_genes))                     # intersecting prom on DM genes
-  hyp_prom_trend <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_prom_trend <- compute_hypergeom_safe(q, m, N, k)
   
   #exon
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))             # all DM genes
   m <- as.numeric(length(exon_genes))                           # exon DM genes
   k <- as.numeric(length(intersect_genes))                      # all intersecting DM genes
   q <- as.numeric(length(exon_inter_genes))                     # intersecting exon DM genes
-  hyp_ex <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_ex <- compute_hypergeom_safe(q, m, N, k)
   
   #intron
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))             # all DM genes
   m <- as.numeric(length(intron_genes))                         # intron DM genes
   k <- as.numeric(length(intersect_genes))                      # all intersecting DM genes
   q <- as.numeric(length(intron_inter_genes))                   # intersecting intron DM genes
-  hyp_int <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_int <- compute_hypergeom_safe(q, m, N, k)
   
   #Intergenic
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))             # all DM genes
   m <- as.numeric(length(interg_genes))                         # Intergenic DM genes
   k <- as.numeric(length(intersect_genes))                      # all intersecting DM genes
   q <- as.numeric(length(interg_inter_genes))                   # intersecting intergenic on DM genes
-  hyp_interg <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_interg <- compute_hypergeom_safe(q, m, N, k)
   
   #5' UTR
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))             # all DM genes
   m <- as.numeric(length(UTR5_genes))                           # 5'UTR DM genes
   k <- as.numeric(length(intersect_genes))                      # all intersecting DM genes
   q <- as.numeric(length(UTR5_inter_genes))                     # intersecting 5'UTR on DM genes
-  hyp_5UTR <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_5UTR <- compute_hypergeom_safe(q, m, N, k)
   
   #3'UTR
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))              # all DM genes
   m <- as.numeric(length(UTR3_genes))                            # 3'UTR DM genes
   k <- as.numeric(length(intersect_genes))                       # all intersecting DM genes
   q <- as.numeric(length(UTR3_inter_genes))                      # intersecting 3'UTR on DM genes
-  hyp_3UTR <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
+  hyp_3UTR <- compute_hypergeom_safe(q, m, N, k)
   
   
   safe_perc <- function(num, den) if (den > 0) num * 100 / den else NA_real_  #safe against divisions with 0
@@ -240,7 +249,7 @@ for(METHOD in 1:5){
 }
 
 #Graph Output
-pdf("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Region_analysis_ChIPseeker D1.pdf", height = 10, width = 15)
+pdf(file.path(PATH, "Dataset_3", "4_Integration_results", "Region_analysis_ChIPseeker D3.pdf"), height = 10, width = 15)
 plot_grid(plotlist = graph_list, ncol = 2)
 dev.off()
 
@@ -251,4 +260,4 @@ Stats_df$metric <- rownames(Stats_df)
 Stats_df <- Stats_df[ , c("metric", setdiff(names(Stats_df), "metric"))]  # Puts "metric" as first column
 
 #Output
-write.xlsx(Stats_df, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/4_Integration_results/Stats_table_region.xlsx", rowNames = FALSE)
+write.xlsx(Stats_df, file.path(PATH, "Dataset_3", "4_Integration_results", "Stats_table_region.xlsx"), rowNames = FALSE)

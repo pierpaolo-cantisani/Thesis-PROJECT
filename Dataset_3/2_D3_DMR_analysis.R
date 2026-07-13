@@ -2,11 +2,17 @@ library(data.table)
 library(stringr)
 library(limma)
 library(ggplot2)
+library(GenomicRanges)
+library(karyoploteR)
+
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
+
+pdf(file.path(PATH, "Dataset_3", "2_BS-Seq", "WGBS Graphs D3.pdf"), height = 10, width = 15)
 
 ### 1. Importing files and transforming into Mvalue###
 
-meth_D0 <- fread("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/2_BS-Seq/GSE263782_Day0_methyl_matrix.csv.gz")
-meth_D28 <- fread("C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/2_BS-Seq/GSE263782_Day28_methyl_matrix.csv.gz")
+meth_D0 <- fread(file.path(PATH, "Dataset_3", "2_BS-Seq", "GSE263782_Day0_methyl_matrix.csv.gz"))
+meth_D28 <- fread(file.path(PATH, "Dataset_3", "2_BS-Seq", "GSE263782_Day28_methyl_matrix.csv.gz"))
 
 #Sorting samples numerically:
 meth_D0  <- meth_D0[order(as.integer(sub("_D0$",  "", X)))]
@@ -79,24 +85,45 @@ deltaB <- D28_mean - D0_mean
 res$deltaB <- deltaB
 
 ##Extracting significant results:
-sign_DM <- res[res$adj.P.Val < 0.05 & abs(res$deltaB) > 0.1, ]
+sign_DM <- res[res$adj.P.Val < 0.05 & abs(res$deltaB) > 0.05, ]
 sign_DM$seqnames <- sub("\\..*", "", rownames(sign_DM))
 sign_DM$start <- as.integer(sub(".*\\.", "", rownames(sign_DM)))
 
 ##Volcano plot
 ggplot(res, aes(x = deltaB, y = -log10(adj.P.Val))) +
-  geom_point(alpha = 0.05) +
+  geom_point(alpha = 0.5) +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", color ="blue") +
-  geom_vline(xintercept = c(-0.1, +0.1), linetype = "dashed", color ="blue") +
-  geom_point(data = res[res$adj.P.Val < 0.05 & abs(res$deltaB) > 0.1, ], col = "red") +
+  geom_vline(xintercept = c(-0.05, +0.05), linetype = "dashed", color ="blue") +
+  geom_point(data = res[res$adj.P.Val < 0.05 & abs(res$deltaB) > 0.05, ], col = "red") +
   theme_minimal() +
-  labs(title = "Volcano plot - DM analysis", x= "Delta beta value", y = "-log10(adj pvalue)")
+  labs(title = "Volcano plot: DM analysis", x= "Delta beta value", y = "-log10(adj pvalue)")
 
 # Exporting
-write.csv(sign_DM, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/2_BS-Seq/sign_DM.csv", , row.names = FALSE)
+sign_DM$coord_key <- paste(sign_DM$seqnames, sign_DM$start, sep = "_")
+write.csv(sign_DM, file.path(PATH, "Dataset_3", "2_BS-Seq", "sign_DM.csv"), row.names = FALSE)
 
 #Changing rownames and exporting M-values
 seqnames <- sub("\\..*", "", rownames(M_CpG_matrix))
 start <- as.integer(sub(".*\\.", "", rownames(M_CpG_matrix)))
 rownames(M_CpG_matrix) <- paste(seqnames, start, sep="_")
-write.csv(M_CpG_matrix, "C:/Users/pierp/Desktop/THESIS PROJECT/Dataset_3/2_BS-Seq/M_CpG_matrix.csv", , row.names = TRUE)
+write.csv(M_CpG_matrix, file.path(PATH, "Dataset_3", "2_BS-Seq", "M_CpG_matrix.csv"), row.names = TRUE)
+
+dev.off()
+
+
+#Karyo visualization
+#Obtaining GRanges
+sign_DM_GR <- makeGRangesFromDataFrame(data.frame(seqnames = sign_DM$seqnames,
+                                                  start = sign_DM$start,
+                                                  end = sign_DM$start))
+seqlevelsStyle(sign_DM_GR) <- "UCSC"
+
+pdf(file.path(PATH, "Dataset_3", "2_BS-Seq", "Chr DM distribution D3.pdf"), width = 12, height = 8)
+
+## Graph: Position of methylation sites on all chromosomes
+## Checking if their position is clusterized around centromeres. Then considering filtering
+
+kp <- plotKaryotype(genome="hg38")
+kp <- kpPlotDensity(kp, sign_DM_GR)
+
+dev.off()

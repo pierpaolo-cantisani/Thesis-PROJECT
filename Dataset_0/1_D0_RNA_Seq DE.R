@@ -167,7 +167,7 @@ ggplot(RNAseq_universe, aes(x = log2FoldChange, y = -log10(padj))) +
                                     RNAseq_universe$padj < 0.05 & 
                                     abs(RNAseq_universe$log2FoldChange) > 1, ], color = "red") +
   theme_minimal() +
-  labs(title = "Volcano plot: case vs ctrl", x = "log2 Fold Change", y = "-log10(adj pvalue)")
+  labs(title = "Volcano plot: DE analysis", x = "log2 Fold Change", y = "-log10(adj pvalue)")
 
 
 ##Output data for comparison with ground truth

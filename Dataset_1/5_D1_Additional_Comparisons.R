@@ -4,53 +4,10 @@ library(tidyr)
 library(openxlsx)
 library(cowplot)
 
-#In sezione 2.3 (hypo/hyper vs up/down) costruisci N, m, k, q contando righe (siti), non geni, e lo dichiari esplicitamente 
-#("analysis is for site, not for gene"). Concettualmente legittimo, ma l'ipergeometrica assume estrazioni senza rimpiazzo da 
-#una popolazione di unità indipendenti. I siti sullo stesso gene non sono indipendenti (condividono lo stesso log2FC: il gene 
-#uno solo!). Quindi un gene con 5 siti DM hypo e fortemente up conta 5 volte nello stesso "successo", gonfiando artificialmente 
-#q e N. Questo viola l'indipendenza alla base del test e rende i p-value anti-conservativi (troppo significativi). 
-#Per M4/M5, dove la molteplicità è alta, l'effetto è marcato. Non è un bug di codice, è un problema di validità del test: 
-#in tesi è esattamente il punto su cui un biostatistico ti incalzerebbe. La via difendibile è fare questi test a livello di 
-#(un gene = un'osservazione, classificato per il suo trend prevalente o per il sito a maggior |meth.diff|), oppure dichiarare apertamente il limite.
-#Secondo punto statistico: stai facendo ~15 test ipergeometrici per metodo × 5 metodi ≈ 75 test, senza nessuna correzione per multiple testing su questa famiglia. 
-#Le sezioni 2-4 producono p-value che poi interpreti come "YES se < 0.05". Con 75 test, diversi saranno < 0.05 per caso. 
-#Anche solo un BH sulla famiglia di test concettualmente omogenei renderebbe le conclusioni molto più solide.
-#Terzo: in sezione 2.1 hyp_DM_up e poi hyp_fin_up usano DM_up_genes calcolato come all_up$SYMBOL[all_up$SYMBOL %in% DM_genes] — ma DM_genes è unique(DM_sites$SYMBOL) 
-#(tutti i DM, non intersecato con l'universo), mentre N usa length(universe). C'è un mismatch tra la popolazione (universe) e
-#il sottoinsieme (DM_genes non ristretto a universe): alcuni DM_genes potrebbero non essere nell'universo, quindi k e q sono 
-#contati su una base leggermente diversa da N. Andrebbe usato DM_genes_univ (che hai già!) ovunque per coerenza. Questo è un bug sottile di consistenza dei conteggi che falsa leggermente i p-value.
-
-
-
-### !!! Summary:
-#This analysis answer the following questions (p-value < 0.05 means YES):
-
-#For the METHOD == X:
-## Section 1
-# (Significance of intersection): Are DM genes more Differentially Expressed compared to all genes?
-## Section 2
-# (i)All DM (p-value): Do DM genes have a trend towards up/down regulation?
-# (ii)DM ∩ DE DM (p-value): Do DM ∩ DE genes have a trend towards up/down regulation?
-# (iii)DM ∩ DE vs All DM (p-value): Do DM ∩ DE have a significantly higher trend towards up/down regulation compared to All DM?
-##!!! Queste tre domande insieme vedono se c'è un trend di tipo hypo/up, hyper/down,e se questo è specifico per DM ∩ DE, o una regola generale dei DM. 
-# Hypomethylated DM: Do hypomethylated DM genes have a trend towards up/down regulation?
-# Hypermethylated DM: Do hypermethylated DM genes have a trend towards up/down regulation?
-## Section 3
-# (meth vs expr): Is the magnitude of the methylation (in the category) correlated to the genes up/down regulation?
-## Section 4
-# (multi DM genes) : Are genes with 2 or more (non intergenic) methylation sites more likely to be DE than those with 1?
-## Section 5
-# (sites vs log2FC): Do the number of DM sites in a gene correlate with its expression (making it more likely DE)?
-# (sites vs |log2FC|): Do the number of DM sites in a DE gene correlate with the magnitude of its differential expression?
-
-# All p-values within a method are BH-adjusted as a single family of 15 tests.
-# This includes 12 hypergeometric tests + 3 Spearman correlation tests.
-# Significance threshold: padj < 0.05.
-
-
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 ### 0. Importing DE genes ###
+
 #Importing RNA-Seq DE genes
 DE_results <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
@@ -59,12 +16,14 @@ DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for 
 #Importing RNA-seq universe (all genes considered for the DESeq2 analysis)
 RNAseq_universe <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "RNAseq_universe.csv"), col.names = c("SYMBOL", "log2FoldChange", "padj"))
 
-## Choosing "universe" as the RNAseq_universe. So that the METHOD's association can theorically connect to any of those genes.
+## Choosing the experimental universe as the RNAseq_universe. So that the METHOD's association can theorically connect to any of those genes.
 universe <- RNAseq_universe$SYMBOL
 
-# Final genes ready for comparison are:
+#Final genes ready for comparison are:
 DE_genes <- unique(DE_results$SYMBOL)
 
+
+### CODE START ###
 
 #Output data for each method will be temporarily inserted in this list. Same for Graph outputs.
 Data_list <- list()
@@ -72,10 +31,8 @@ magnitude_list <- list()     #For section 3
 num_barplot_list <- list()   #For section 4
 scatter_list <- list()       #For section 5
 
-### Iterating on METHOD:
+## Iterating on METHOD:
 for(METHOD in 1:5) {
-  
-  ##### CODE START: ##### 
   
   #Importing DM METHOD lists:
   DM_sites <- read.csv(sprintf(file.path(PATH, "Dataset_1", "3_Benchmark", "DM_sites_Met%d.csv"), METHOD))
@@ -105,7 +62,7 @@ for(METHOD in 1:5) {
   
   ### 2: Do intersected genes have a trend towards up/down regulation? ###
   
-  #2.1: UPREGULATION
+  ## 2.1: UPREGULATION
   DE_up <- DE_results %>% filter(log2FoldChange > 0)
   
   #Obtaining up and down intersecting genes
@@ -114,7 +71,7 @@ for(METHOD in 1:5) {
   intersect_down <- intersect_df %>% filter(log2FoldChange < 0)
   intersect_down_genes <- unique(intersect_down$SYMBOL) # downregolated intersecting genes
   
-  # universe restricted to DE_genes only, because we are testing 
+  # universe restricted to DE_genes only. Deciding to test
   # directionality of expression within the DE subset, not across all genes
   N <- as.numeric(length(DE_genes))                         # universe: all DE_genes
   m <- as.numeric(length(DE_up$SYMBOL))                     # all DE up genes
@@ -143,8 +100,7 @@ for(METHOD in 1:5) {
   
   ## The next question is: is the DM ∩ DE case significantly more upregulated than all DM?
   
-  ## Hypergeometric test on all rel DM sites
-  #How significant is the trend of all DM genes towards being upregulated
+  ## Hypergeometric test
   N <- as.numeric(length(DM_genes_univ))                    # all DM genes (inters univ)
   m <- as.numeric(length(unique(DM_up_genes)))              # all DM upregulated genes (also non DE)
   k <- as.numeric(length(intersect_genes))                  # all intersected DM genes
@@ -154,23 +110,23 @@ for(METHOD in 1:5) {
   
   
   
-  ##2.2: DOWNREGULATION:
+  ## 2.2: DOWNREGULATION:
   
   DE_down <- DE_results %>% filter(log2FoldChange < 0)
   
-  # All down genes in universe (also non DE)
+  #All down genes in universe (also non DE)
   all_down <- RNAseq_universe %>% filter(log2FoldChange < 0)
   DM_down_genes <- all_down$SYMBOL[all_down$SYMBOL %in% DM_genes]
   
   
-  # Hypergeometric test: are all DM genes enriched for downregulation?
+  #Hypergeometric test: are all DM genes enriched for downregulation?
   N <- as.numeric(length(universe))                 # universe
   m <- as.numeric(length(all_down$SYMBOL))          # all downregulated genes in universe
   k <- as.numeric(length(DM_genes_univ))            # all DM genes (inters univ)
   q <- as.numeric(length(DM_down_genes))            # downregulated DM genes
   hyp_DM_down <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
   
-  # Hypergeometric test: are DM ∩ DE genes enriched for downregulation?
+  #Hypergeometric test: are DM ∩ DE genes enriched for downregulation?
   N <- as.numeric(length(DE_genes))                 # universe: all DE genes
   m <- as.numeric(length(DE_down$SYMBOL))           # all DE down genes
   k <- as.numeric(length(intersect_genes))          # all intersected DM genes
@@ -193,41 +149,43 @@ for(METHOD in 1:5) {
   hyper_DM <- DM_sites %>% filter(meth.diff > 0)
   hypo_int_DM <- hypo_DM %>% filter(SYMBOL %in% DE_results$SYMBOL)
   hyper_int_DM <- hyper_DM %>% filter(SYMBOL %in% DE_results$SYMBOL)
-  #I'm not filtering for unique genes. So there will be duplicates: this analysis will be done for site, rather than gene
+  #Not filtering for unique genes. So there will be duplicates: this analysis will be done for site, rather than gene
   hypo_int_up_DM <- hypo_DM %>% filter(SYMBOL %in% DE_up$SYMBOL)
   hyper_int_up_DM <- hyper_DM %>% filter(SYMBOL %in% DE_up$SYMBOL)
   hypo_int_down_DM <- hypo_DM %>% filter(SYMBOL %in% DE_down$SYMBOL)
   hyper_int_down_DM <- hyper_DM %>% filter(SYMBOL %in% DE_down$SYMBOL)
   
-  # Hypergeometric test: Are hypo/hyper DM sites associated with strong up/downregulation?
-  # hypo-up
+  ## Hypergeometric test: Are hypo/hyper DM sites associated with strong up/downregulation?
+  #hypo-up
   N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
   m <- as.numeric(length(hypo_int_up_DM$SYMBOL) + length(hyper_int_up_DM$SYMBOL))      # All up intersecting genes
   k <- as.numeric(length(hypo_int_DM$SYMBOL))                                          # All hypo intersecting genes
   q <- as.numeric(length(hypo_int_up_DM$SYMBOL))                                       # hypo-up intersecting genes
   hyp_up_hypo <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
-  # hypo-down
+  #hypo-down
   N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
   m <- as.numeric(length(hypo_int_down_DM$SYMBOL) + length(hyper_int_down_DM$SYMBOL))  # All down intersecting genes
   k <- as.numeric(length(hypo_int_DM$SYMBOL))                                          # All hypo intersecting genes
   q <- as.numeric(length(hypo_int_down_DM$SYMBOL))                                     # hypo-down intersecting genes
   hyp_down_hypo <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
-  # hyper-up
+  #hyper-up
   N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
   m <- as.numeric(length(hypo_int_up_DM$SYMBOL) + length(hyper_int_up_DM$SYMBOL))      # All up intersecting genes
   k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hyper intersecting genes
   q <- as.numeric(length(hyper_int_up_DM$SYMBOL))                                      # hyper-up intersecting genes
   hyp_up_hyper <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
-  # hyper-down
+  #hyper-down
   N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
   m <- as.numeric(length(hypo_int_down_DM$SYMBOL) + length(hyper_int_down_DM$SYMBOL))  # All down intersecting genes
-  k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hypo intersecting genes
-  q <- as.numeric(length(hyper_int_down_DM$SYMBOL))                                    # hypo-down intersecting genes
+  k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hyper intersecting genes
+  q <- as.numeric(length(hyper_int_down_DM$SYMBOL))                                    # hyper-down intersecting genes
   hyp_down_hyper <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
   
   
   ##! Duplicates were not cleaned: this is wanted, as different sites on the same gene may have different trends.
   ##  In this way all information is kept. Therefore the analysis is for "site", not for "gene".
+  
+  
   
   ### 3: The more the sites are differentially methylated (in magnitude), the more the gene is up/down regulated? (Correlation between magnitude of methyl and up/down regulation) ###
   
@@ -243,7 +201,6 @@ for(METHOD in 1:5) {
       mean_M = mean(Mv),
       log2FC = unique(log2FC))
   
-  #Intersected
   #all
   all_cor <- cor.test(gene_level_df$mean_M, gene_level_df$log2FC, method = "spearman")
   
@@ -260,12 +217,12 @@ for(METHOD in 1:5) {
   
   ### 4: Effects of number of DM sites on Expression ###
   
-  ##4.1: The more DM sites a gene has, the more probability of being DE it has?
+  ## 4.1: The more DM sites a gene has, the higher its probability of being DE?
   
   #Extracting the genes with more than 1 DM site
   DM_num <- as.data.frame(table(DM_sites$SYMBOL))
   colnames(DM_num) <- c("SYMBOL", "n_DM_sites")
-  DM_num$SYMBOL <- as.character(DM_num$SYMBOL)       #Avoid it being "factor"
+  DM_num$SYMBOL <- as.character(DM_num$SYMBOL)       #Avoiding it being "factor"
   
   multi_DM_genes  <- DM_num$SYMBOL[DM_num$n_DM_sites >= 2]   # ≥ 2 sites
   #Intersecting:
@@ -280,7 +237,7 @@ for(METHOD in 1:5) {
   
   
   ## Graph: Probability of being DE depending on number of DM sites ##
-  # Summary dataframe
+  #Summary dataframe
   single_DM <- DM_sites %>% filter(SYMBOL %in% DM_num$SYMBOL[DM_num$n_DM_sites < 2])
   single_DM_genes <- DM_num$SYMBOL[DM_num$n_DM_sites < 2]    # = 1 site
 
@@ -291,7 +248,7 @@ for(METHOD in 1:5) {
     multi    = c(length(multi_DM_genes),   length(multi_intersect_genes))
   )
   
-  # Long format
+  #Long format
   dm_long <- dm_summary %>%
     pivot_longer(cols = c(single, multi),
                  names_to  = "dm_class",
@@ -306,17 +263,17 @@ for(METHOD in 1:5) {
                         labels = c("1 DM site", "≥2 DM sites"))
     )
   
-  # Totals for bar annotation
+  #Totals for bar annotation
   totals_dm <- dm_long %>%
     distinct(group, total)
   
-  # Colors
+  #Colors
   dm_colors <- c(
     "1 DM site"   = "#4393C3",
     "≥2 DM sites" = "#D6604D"
   )
   
-  # Plot
+  #Plot
   num_barplot_list[[METHOD]] <- ggplot(dm_long, aes(x = group, y = pct, fill = dm_class)) +
     geom_bar(stat = "identity", width = 0.5) +
     geom_text(
@@ -350,25 +307,23 @@ for(METHOD in 1:5) {
   
   ### 5: Correlation between number of DM sites and log2FC ###
   
-  ## Qui si considerano tutti i geni, non l'intersezione.
+  ## All genes considered here, not only the intersection
+  #Counting DM sites per gene using DM_num, called at the beginning of section 4
   
-  # Counting DM sites per gene
-  #Using DM_num, called at the beginning of section 4
-  
-  # Joining expression values from the RNA-seq universe
+  #Joining expression values from the RNA-seq universe
   sites_fc_df <- DM_num %>%
     left_join(RNAseq_universe, by = "SYMBOL") %>%
     filter(!is.na(log2FoldChange))
   
-  # Spearman correlation: number of DM sites vs magnitude of regulation
+  ## Spearman correlation: number of DM sites vs magnitude of regulation
   sites_abs_fc_cor <- cor.test(sites_fc_df$n_DM_sites, abs(sites_fc_df$log2FoldChange), method = "spearman")
   
-  # Spearman correlation: number of DM sites vs signed log2FC
+  ##Spearman correlation: number of DM sites vs signed log2FC
   sites_fc_cor <- cor.test(sites_fc_df$n_DM_sites, sites_fc_df$log2FoldChange, method = "spearman")
   
   
   
-  ## Graph: Scatter plot of number of DM sites vs log2FC ##
+  ## Graph: Scatter plot of number of DM sites vs log2FC
   jit <- position_jitter(width = 0.12, height = 0, seed = 42)
   #Magnitude
   p_sites_fc_abs <- ggplot(sites_fc_df, aes(x = n_DM_sites, y = abs(log2FoldChange))) +
@@ -379,7 +334,7 @@ for(METHOD in 1:5) {
     geom_smooth(method = "lm") +
     labs(title = sprintf("M%d: Correlation # DM sites vs expr (magnitude)", METHOD),
          x = "Number of DM sites",
-         y = "log2FoldChange") +
+         y = "|log2FoldChange|") +
     theme_classic(base_size = 13) +
     theme(plot.title = element_text(face = "bold"))
   #Direction
@@ -417,11 +372,11 @@ for(METHOD in 1:5) {
     sites_fc_p       = sites_fc_cor$p.value
   )
   
-  # Applying BH
+  #Applying BH correction
   pvals_adj <- p.adjust(pvals_raw, method = "BH")
   
   
-  ##Final output data:
+  ## Final output data:
   Data_list[[sprintf("M%d", METHOD)]] <- c(
     pvals_adj["hyp_intersect"], pvals_adj["hyp_DM_up"],
     pvals_adj["hyp_up"], pvals_adj["hyp_fin_up"],
@@ -464,11 +419,11 @@ Stats_table_final$metric <- rownames(Stats_table_final)
 Stats_table_final <- Stats_table_final[ , c("metric", setdiff(names(Stats_table_final), "metric"))]  # Puts "metric" as first column
 
 
-#Writing on file
+## Writing on file
 write.xlsx(Stats_table_final, file.path(PATH, "Dataset_1", "4_Integration_results", "Stats_table_final.xlsx"), rowNames = FALSE)
 
 
-##Plotting graphs:
+## Plotting graphs:
 pdf(file.path(PATH, "Dataset_1", "4_Integration_results", "Additional_comparison D1.pdf"), height = 10, width = 15)
 
 plot_grid(plotlist = magnitude_list, nrow = 2, ncol= 3)

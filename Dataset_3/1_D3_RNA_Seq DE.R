@@ -1,17 +1,17 @@
 library(rtracklayer)
-library(stringr)
+library(matrixStats)
 library(tidyverse)
 library(DESeq2)
 library(pheatmap)
 
+PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
-setwd("C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_3/1_RNA-Seq")
-pdf("C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_3/1_RNA-Seq/RNA-Seq Graphs D3.pdf", height = 10, width = 15)
+pdf(file.path(PATH, "Dataset_3", "1_RNA-Seq", "RNA-Seq Graphs D3.pdf"), height = 10, width = 15)
 
 ### 1. File and reference download ###
 
 ## Downloading the reference: hg38 version 49
-gtf <- import("C:/Users/pierp/Desktop/Thesis PROJECT/references/gencode.v49.annotation.gtf.gz")
+gtf <- import(file.path(PATH, "references", "gencode.v49.annotation.gtf.gz"))
 #mapping ensembl id and hugo symbols
 gtf_genes <- gtf[gtf$type == "gene"]
 gene_map <- data.frame(
@@ -21,7 +21,7 @@ gene_map <- data.frame(
 
 
 #Importing counts
-counts <- read.delim("C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_3/1_RNA-Seq/Additional_f6_ST4.txt",
+counts <- read.delim(file.path(PATH, "Dataset_3", "1_RNA-Seq", "Additional_f6_ST4.txt"),
                      header = TRUE, row.names = 1,
                      check.names = FALSE)
 
@@ -79,7 +79,6 @@ dds_exp <- dds   #I'll work on a parallel dds, and modify only this for the expo
 
 #Stripping version
 rownames(dds_exp) <- sub("\\.\\d+$", "", rownames(dds_exp))
-gene_map$ensembl_id <- sub("\\.\\d+$", "", gene_map$ensembl_id)
 
 #Changing the dds row names with SYMBOLS
 new_names <- gene_map$hugo_symbol[
@@ -89,7 +88,7 @@ new_names <- make.unique(new_names)      #make.unique will add ".1", ".2", etc..
 rownames(dds_exp) <- new_names
 
 ##Export
-saveRDS(dds_exp, file = "C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_3/1_RNA-Seq/dds.rds")
+saveRDS(dds_exp, file = file.path(PATH, "Dataset_3", "1_RNA-Seq", "dds.rds"))
 
 
 
@@ -129,8 +128,15 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = condition)) +
 
 
 ## Heatmap
+## Heatmap
 #Again using the counts after transposition: counts_norm_t
-counts_norm_matrix <- scale(counts_norm_t)
+#Filtering: Heatmap is too heavy
+g_vars <- rowVars(counts_norm) 
+counts_norm_filt <- counts_norm[order(g_vars, decreasing=TRUE)[1:1000], ]
+
+#now preparing data
+counts_norm_t_filt <- t(counts_norm_filt)
+counts_norm_matrix <- scale(counts_norm_t_filt)
 heatmap_matrix <- t(counts_norm_matrix)
 
 Conditions <- data.frame(
@@ -178,9 +184,8 @@ ggplot(counts_norm_long, aes(x = Sample, y = expr)) +
 ##Extracting Differentially expressed genes (by adj_pvalue)
 #Considering the contrast on the condition: infection
 DE_res <- as.data.frame(results(dds, contrast = c("condition", "D28", "D0")))
-#Mapping the gene names as HUGO symbols
-DE_res$ENSEMBL <- row.names(DE_res)
 
+#Mapping the gene names as HUGO symbols
 DE_res$ENSEMBL <- sub("\\.\\d+$", "", rownames(DE_res))  #Stripping .1, .2 etc..
 DE_res <- merge(DE_res, gene_map,
                 by.x = "ENSEMBL",
@@ -195,12 +200,12 @@ DE_res <- DE_res %>%
 
 sign_DE_res <- DE_res %>% filter(padj < 0.05 & abs(log2FoldChange) > 1)
 #Exporting results
-write.csv(sign_DE_res, "C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_3/1_RNA-Seq/DE_results.csv", row.names = FALSE)
+write.csv(sign_DE_res, file.path(PATH, "Dataset_3", "1_RNA-Seq", "DE_results.csv"), row.names = FALSE)
 
 
 #Exporting the universe
 RNAseq_universe <- DE_res[, c("hugo_symbol", "log2FoldChange", "padj")]
-write.csv(RNAseq_universe, file = "C:/Users/pierp/Desktop/Thesis PROJECT/Dataset_3/1_RNA-Seq/RNAseq_universe.csv", row.names = FALSE)
+write.csv(RNAseq_universe, file = file.path(PATH, "Dataset_3", "1_RNA-Seq", "RNAseq_universe.csv"), row.names = FALSE)
 
 
 
@@ -214,6 +219,6 @@ ggplot(RNAseq_universe, aes(x = log2FoldChange, y = -log10(padj))) +
                                       RNAseq_universe$padj < 0.05 & 
                                       abs(RNAseq_universe$log2FoldChange) > 1, ], color = "red") +
   theme_minimal() +
-  labs(title = "Volcano plot: infection", x = "log2 Fold Change", y = "-log10(adj pvalue)")
+  labs(title = "Volcano plot: DE analysis", x = "log2 Fold Change", y = "-log10(adj pvalue)")
 
 dev.off()

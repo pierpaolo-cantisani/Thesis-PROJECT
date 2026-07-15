@@ -17,7 +17,7 @@ pdf(file.path(PATH, "Dataset_1", "2_BS-Seq", "WGBS Graphs D1.pdf"), width = 12, 
 #Setting file directory
 setwd(file.path(PATH, "Dataset_1", "2_BS-Seq"))
 
-#names of the import files
+#Names of the import files
 files <- c(
   "GSM1565939_DC81_MTB_5mC.txt.gz", "GSM1565940_DC81_NI_5mC.txt.gz", "GSM1565941_DC82_MTB_5mC.txt.gz", 
   "GSM1565942_DC82_NI_5mC.txt.gz", "GSM1565943_DC83_MTB_5mC.txt.gz", "GSM1565944_DC83_NI_5mC.txt.gz",
@@ -31,7 +31,7 @@ sample_names = c("rep_1_TB", "rep_1_CTRL", "rep_2_TB", "rep_2_CTRL",
 
 
 ## Methylkit expects a different format: creating the MethylKit input object
-methyl_obj <- new("methylRawList",                          #methylraw class is defined in the methylKit library
+methyl_obj <- new("methylRawList",                             #methylraw class is defined in the methylKit library
                   lapply(seq_along(files), function(i) {
                     df <- fread(files[i], header = TRUE, col.names = c("chr", "pos", "M", "M+U"))
                     # removing spike-ins
@@ -118,16 +118,17 @@ myDiff <- calculateDiffMeth(meth,
 myDiff <- readRDS(file.path(PATH, "Dataset_1", "2_BS-Seq", "myDiff.rds"))
 
 
-## Finally: selecting differentially methylated bases:
-#get all differentially methylated bases
+## Selecting differentially methylated bases:
+#All differentially methylated bases:
 myDiff25p=getMethylDiff(myDiff,difference=25,qvalue=0.01)
-#get hyper and hypo
+
+#Hyper and hypo-only DM:
 myDiff25p.hyper=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hyper")
 myDiff25p.hypo=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hypo")
 
 
 
-## Volcano plot
+## Graph: volcano plot
 myDiff_df <- as.data.frame(as(myDiff, "GRanges"))
 #Too many sites for the plot. Filtering high qvalue and low meth.diff values:
 myDiff_df_plot <- myDiff_df[!is.na(myDiff_df$qvalue) & 

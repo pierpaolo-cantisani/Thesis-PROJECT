@@ -7,11 +7,12 @@ library(ggplot2)
 library(cowplot)
 library(openxlsx)
 
-##! Methods 1, 2 and 5 are identical for this analysis. Methods 3 and 4 are subsets of 1/2/5
+### Methods 1, 2 and 5 are identical for this analysis. Methods 3 and 4 are subsets of 1/2/5
 
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
-#Importing DE genes
+
+## Importing DE genes
 DE_results <- read.csv(file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"))
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
@@ -38,11 +39,11 @@ for(METHOD in 1:5){
   seqlevelsStyle(DM_GR) <- "UCSC"
   
   ## Annotation: CpG that were part of an association for each method are reannotated with the same tool (CHIPseeker): in this way
-  #              they will be assigned to a gene region, and they will be comparable.
+  ##            they will be assigned to a gene region, and they will be comparable.
   #Using txdb
   
   peakAnno <- annotatePeak(DM_GR,
-                           tssRegion = c(-2000, 200),   #This is the standard definition for Promoter. Can be arbitrarly changed
+                           tssRegion = c(-2000, 200),   #This is a standard definition for Promoter. Can be arbitrarly changed
                            TxDb      = txdb,
                            annoDb    = "org.Hs.eg.db")
   DM_ann_df <- as.data.frame(peakAnno)
@@ -62,7 +63,7 @@ for(METHOD in 1:5){
   UTR5_genes <- unique(DM_ann_df$SYMBOL[grepl("5' UTR", DM_ann_df$annotation)])
   UTR3_genes <- unique(DM_ann_df$SYMBOL[grepl("3' UTR", DM_ann_df$annotation)])
   
-  #Obtaining only *region* intersecting genes
+  #Obtaining *region*-only intersecting genes
   prom_inter_genes <- intersect(prom_genes, DE_results$SYMBOL)
   exon_inter_genes <- intersect(exon_genes, DE_results$SYMBOL)
   intron_inter_genes <- intersect(intron_genes, DE_results$SYMBOL)
@@ -72,7 +73,7 @@ for(METHOD in 1:5){
   
   
   ## Hypergeometric tests
-  #Are intersecting genes associated to methylation specific to introns/exons/3UTR/promoters?
+  #Are intersecting genes associated to methylation specific to region type?
   
   #Promoter
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))             # all DM genes
@@ -131,7 +132,8 @@ for(METHOD in 1:5){
   #BH
   pvals_adj <- p.adjust(pvals_raw, method = "BH")
   
-  #Preparing table
+  
+  ## Preparing table
   Stats_region[[METHOD]] <- c(
     round(perc_prom, 1),    pvals_adj["prom"],
     round(perc_ex, 1),      pvals_adj["exon"],

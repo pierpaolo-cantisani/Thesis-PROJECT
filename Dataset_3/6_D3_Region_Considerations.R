@@ -7,12 +7,10 @@ library(ggplot2)
 library(cowplot)
 library(openxlsx)
 
-## Variabile confondente da considerare!! Questa annotazione è con CHIPseeker (methods 2 e 3). Quindi questa analisi
-#  potrebbe avere risultati "biased"
 
-##! Metodi 1, 2 e 5 sono uguali. E metodi 3 e 4 sono sottoinsiemi di 1/2/5. Poco interessante
+### Methods 1, 2 and 5 are identical for this analysis. Methods 3 and 4 are subsets of 1/2/5
 
-##FUNCTIONS
+### FUNCTIONS ###
 
 compute_hypergeom_safe <- function(q, m, N_val, k) {
   if (N_val == 0 || k == 0) return(NA_real_)
@@ -22,7 +20,7 @@ compute_hypergeom_safe <- function(q, m, N_val, k) {
 
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
-#Importing DE genes
+## Importing DE genes
 DE_results <- read.csv(file.path(PATH, "Dataset_3", "1_RNA-Seq", "DE_results.csv"))
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
@@ -48,12 +46,12 @@ for(METHOD in 1:5){
                                     starts.in.df.are.0based = FALSE)
   seqlevelsStyle(DM_GR) <- "UCSC"
   
-  ## Annotation: CpG that were part of an association for each method are reannotated with the same tool (annotatr): in this way
-  #              they will be assigned to a gene region, and they will be comparable.
+  ## Annotation: CpG that were part of an association for each method are reannotated with the same tool (CHIPseeker): in this way
+  ##             they will be assigned to a gene region, and they will be comparable.
   #Using txdb
   
   peakAnno <- annotatePeak(DM_GR,
-                           tssRegion = c(-2000, 200),   #This is the standard definition for Promoter. Can be arbitrarly changed
+                           tssRegion = c(-2000, 200),   #This is a standard definition for Promoter. Can be arbitrarily changed
                            TxDb      = txdb,
                            annoDb    = "org.Hs.eg.db")
   DM_ann_df <- as.data.frame(peakAnno)
@@ -65,7 +63,7 @@ for(METHOD in 1:5){
   #Intersection:
   intersect_genes <- intersect(DE_results$SYMBOL, DM_ann_df$SYMBOL)
   
-  ## DMR on promoter/exon/intron/UTR/intergenic genes
+  ## DM sites on *region* genes
   prom_genes <- unique(DM_ann_df$SYMBOL[grepl("^Promoter", DM_ann_df$annotation)])
   exon_genes <- unique(DM_ann_df$SYMBOL[grepl("^Exon", DM_ann_df$annotation)])
   intron_genes <- unique(DM_ann_df$SYMBOL[grepl("^Intron", DM_ann_df$annotation)])
@@ -73,7 +71,7 @@ for(METHOD in 1:5){
   UTR5_genes <- unique(DM_ann_df$SYMBOL[grepl("5' UTR", DM_ann_df$annotation)])
   UTR3_genes <- unique(DM_ann_df$SYMBOL[grepl("3' UTR", DM_ann_df$annotation)])
   
-  #Obtaining only exon/intron/UTR intersecting genes
+  #Obtaining *region*-only intersecting genes
   prom_inter_genes <- intersect(prom_genes, DE_results$SYMBOL)
   exon_inter_genes <- intersect(exon_genes, DE_results$SYMBOL)
   intron_inter_genes <- intersect(intron_genes, DE_results$SYMBOL)
@@ -84,7 +82,7 @@ for(METHOD in 1:5){
   ## Some of the cases have very low numbers: must be careful with the test interpretation. 
   
   ## Hypergeometric tests
-  #Are intersecting genes associated to methylation specific to introns/exons/3UTR/promoters?
+  #Are intersecting genes associated to methylation specific to region type?
   
   #Promoter
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))             # all DM genes
@@ -138,13 +136,14 @@ for(METHOD in 1:5){
   perc_3UTR  <- safe_perc(length(UTR3_inter_genes),  length(UTR3_genes))
   
   
-  ##Multiple test correction: BH
+  ## Multiple test correction: BH
   pvals_raw <- c(prom = hyp_prom_trend, exon = hyp_ex, intron = hyp_int,
                  interg = hyp_interg, UTR5 = hyp_5UTR, UTR3 = hyp_3UTR)
-  
   #BH
   pvals_adj <- p.adjust(pvals_raw, method = "BH")
   
+  
+  ## Preparing table
   Stats_region[[METHOD]] <- c(
     round(perc_prom, 1),    pvals_adj["prom"],
     round(perc_ex, 1),      pvals_adj["exon"],
@@ -164,14 +163,14 @@ for(METHOD in 1:5){
   
   ## Graph: Region type ##
   
-  # Building counts
+  #Building counts
   region_summary <- data.frame(
     region = c("Promoter", "5'UTR", "Exon", "Intron", "3'UTR", "Intergenic"),
     DM_all = c(length(prom_genes), length(UTR5_genes), length(exon_genes), length(intron_genes), length(UTR3_genes), length(interg_genes)),
     inters_DM = c(length(prom_inter_genes), length(UTR5_inter_genes), length(exon_inter_genes), length(intron_inter_genes), length(UTR3_inter_genes), length(interg_inter_genes))
   )
   
-  # Obtaining long format for ggplot
+  #Obtaining long format for ggplot
   region_long <- region_summary %>%
     pivot_longer(cols = c(DM_all, inters_DM),
                  names_to = "group",
@@ -192,7 +191,7 @@ for(METHOD in 1:5){
     "Intergenic"   = "#984EA3"
   )
   
-  # Tot of annotation on bar
+  #Tot of annotation on bar
   totals <- region_long %>%
     group_by(group) %>%
     summarise(total = sum(n), .groups = "drop")
@@ -248,16 +247,17 @@ for(METHOD in 1:5){
   }
 }
 
-#Graph Output
+
+## Graph Output
 pdf(file.path(PATH, "Dataset_3", "4_Integration_results", "Region_analysis_ChIPseeker D3.pdf"), height = 10, width = 15)
 plot_grid(plotlist = graph_list, ncol = 2)
 dev.off()
 
-#Stats output
+## Stats output
 Stats_df <- as.data.frame(do.call(cbind, Stats_region))
 colnames(Stats_df) <- sprintf("M%d", seq_along(Stats_region))
 Stats_df$metric <- rownames(Stats_df)
 Stats_df <- Stats_df[ , c("metric", setdiff(names(Stats_df), "metric"))]  # Puts "metric" as first column
 
-#Output
+## Output
 write.xlsx(Stats_df, file.path(PATH, "Dataset_3", "4_Integration_results", "Stats_table_region.xlsx"), rowNames = FALSE)

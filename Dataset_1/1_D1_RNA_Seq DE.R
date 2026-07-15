@@ -94,7 +94,7 @@ new_names[is.na(new_names)] <- rownames(dds_exp)[is.na(new_names)]
 new_names <- make.unique(new_names)      #make.unique will add ".1", ".2", etc..
 rownames(dds_exp) <- new_names
 
-##Export
+#Exporting
 saveRDS(dds_exp, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "dds.rds"))
 
 
@@ -102,7 +102,6 @@ saveRDS(dds_exp, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "dds.rds"))
 ### 3. Explorative analysis ###
 
 ## For this experiment there are 6 samples in a paired set-up. For initial visualization only PCA will show clustering and outliers (if any). 
-## t-SNE and UMAP need more sample to start being informative so they will not be implemented. 
 ## Heatmap will confirm clustering and add information on expression. 
 ## Then boxplots of overall expression for each sample will show whether any samples have a general over/under expression, and will verify that normalization was successful
 
@@ -122,7 +121,7 @@ pca_df <- as.data.frame(pca$x[, 1:2])
 pca_df <- merge(pca_df, metadata, by = "row.names")
 pca_df$Row.names <- NULL
 
-#plotting:
+#Plotting:
 ggplot(pca_df, aes(x = PC1, y = PC2, shape = replicate, color = infection)) +
   geom_point(size = 3) +                                                                            #Adding the data as points
   labs(title = "Explorative analysis - PCA",
@@ -141,7 +140,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, shape = replicate, color = infection)) +
 g_vars <- rowVars(counts_norm) 
 counts_norm_filt <- counts_norm[order(g_vars, decreasing=TRUE)[1:1000], ]
 
-#now preparing data
+#Preparing data
 counts_norm_t_filt <- t(counts_norm_filt)
 counts_norm_matrix <- scale(counts_norm_t_filt)
 heatmap_matrix <- t(counts_norm_matrix)
@@ -152,6 +151,7 @@ Conditions <- data.frame(
 )
 row.names(Conditions) <- colnames(heatmap_matrix)
 
+#Plotting:
 pheat <- pheatmap(heatmap_matrix,
                   cluster_rows = FALSE,
                   cluster_cols = TRUE,
@@ -169,7 +169,7 @@ counts_norm_long <- counts_norm %>%
   pivot_longer(cols = -Gene, names_to = "Sample", values_to = "expr")
 counts_norm_long$Sample <- factor(counts_norm_long$Sample, levels = paste0("S", 1:12))
 
-#Boxplot
+#Plotting:
 ggplot(counts_norm_long, aes(x = Sample, y = expr)) +
   geom_boxplot() +
   theme_bw() +
@@ -193,21 +193,16 @@ DE_res <- merge(DE_res, gene_map,
                 by.y = "ensembl_id",
                 all.x = TRUE)
 
-#Removing duplicates (if there are some, tehey are shown by "sum(duplicated(sign_DE_res$hugo_symbol))")
-DE_res <- DE_res %>%
-  group_by(hugo_symbol) %>%
-  slice_max(order_by = abs(log2FoldChange), n = 1, with_ties = FALSE) %>%
-  ungroup()
 
+#Obtaining significant results
 sign_DE_res <- DE_res %>% filter(padj < 0.05 & abs(log2FoldChange) > 1)
 
-#Exporting results
+## Exporting results
 write.csv(sign_DE_res, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "DE_results.csv"), row.names = FALSE)
 
-#Exporting the universe
+## Exporting the universe
 RNAseq_universe <- DE_res[, c("hugo_symbol", "log2FoldChange", "padj")]
 write.csv(RNAseq_universe, file = file.path(PATH, "Dataset_1", "1_RNA-Seq", "RNAseq_universe.csv"), row.names = FALSE)
-
 
 
 ## Visualization: Volcano plot

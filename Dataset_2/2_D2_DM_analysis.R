@@ -7,18 +7,15 @@ library(karyoploteR)
 
 
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
-#pdf(file.path(PATH, "Dataset_2", "2_BS-Seq", "WGBS Graphs D2.pdf"), width = 12, height = 8)
 
+pdf(file.path(PATH, "Dataset_2", "2_BS-Seq", "WGBS Graphs D2.pdf"), width = 12, height = 8)
 
 
 ### 1. File downloading, and MethylKit object building ###
 
-#The data files are not in a typical bismark output format, but they were processed and simplified.
-#Files only have 4 columns: "chromosome", "position", "counts M", "counts M+U (coverage)".
-
-#names of the import files
+#Names of the import files
 files <- c(
-  # Olig2 Control (17)
+  #Olig2 (17)
   file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877183_1524_Olig2_CpG_WGBS.txt.gz"),
   file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877231_1525_Olig2_CpG_WGBS.txt.gz"),
   file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877219_1527_Olig2_CpG_WGBS.txt.gz"),
@@ -37,7 +34,7 @@ files <- c(
   file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877239_AN15240_Olig2_CpG_WGBS.txt.gz"),
   file.path(PATH, "Dataset_2", "2_BS-Seq", "olig2", "GSM2877240_AN16799_Olig2_CpG_WGBS.txt.gz"),
   
-  # NeuN Control (17)
+  #NeuN (17)
   file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877174_1524_NeuN_CpG_WGBS.txt.gz"),
   file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877198_1525_NeuN_CpG_WGBS.txt.gz"),
   file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877200_1527_NeuN_CpG_WGBS.txt.gz"),
@@ -57,7 +54,7 @@ files <- c(
   file.path(PATH, "Dataset_2", "2_BS-Seq", "neun", "GSM2877210_AN16799_NeuN_CpG_WGBS.txt.gz")
 )
 
-# Naming samples:
+#Naming samples:
 sample_names <- c(
   "rep_1_olig2",  "rep_2_olig2",  "rep_3_olig2",  "rep_4_olig2",
   "rep_5_olig2",  "rep_6_olig2",  "rep_7_olig2",  "rep_8_olig2",
@@ -108,13 +105,13 @@ methyl_obj <- methRead(
 )
 
 
-#Stats visualization
+## Stats visualization
 #Methylation
  par(mfrow = c(3, 4))
  for (i in 1:34) {
    getMethylationStats(methyl_obj[[i]], plot = TRUE, both.strands = FALSE)
  }
-# 
+ 
 #Coverage
  par(mfrow = c(3, 4))
  for (i in 1:34) {
@@ -126,6 +123,7 @@ par(mfrow = c(1, 1))
 
 
 ### 2. Filtering and uniting ###
+
 #Analyzing the data:
 # 1. Checking means of coverage
 cov_files <- file.path("bismark_cov", paste0(sample_names, ".cov"))
@@ -136,6 +134,7 @@ cov_means <- sapply(cov_files, function(f) {
 })
 names(cov_means) <- sample_names
 print(cov_means)
+
 # 2. Percentiles
 set.seed(42)
 cov_sample <- unlist(lapply(methyl_obj, function(x) {
@@ -153,33 +152,30 @@ filtered_methyl_obj=filterByCoverage(methyl_obj,lo.count=10,lo.perc=NULL,     #l
                                      suffix = "filtered")
 
 rm(methyl_obj)
-##Merging
+
+## Merging
 meth=unite(filtered_methyl_obj, destrand=FALSE,
            save.db = TRUE,
            suffix = "united")
 
 rm(filtered_methyl_obj)
-##Explorative analysis on the merged:    #This dataset is too big. Must be filtered before
 
-##Filtering
+## Explorative analysis on the merged:    
+
+#This dataset is too big. Must be filtered before. Filtering:
 #Extracting methyl matrix
 pm <- percMethylation(meth)
-
 #SD per CpG
 sds <- rowSds(pm, na.rm = TRUE)
-
 #Indexing top CpG most variable
 top_n <- 10000
 top_idx <- order(sds, decreasing = TRUE)[seq_len(min(top_n, length(sds)))]
-
 #Subset of meth object
 meth_pca <- meth[top_idx, ]
 
-
-#Plotting
+## Plotting: Clustering and PCA
 clusterSamples(meth_pca, dist = "correlation", method = "ward.D2", plot = TRUE)
 PCASamples(meth_pca)
-
 
 
 
@@ -191,16 +187,16 @@ metadata <- data.frame(
              paste0("rep_", 1:17, "_neun")),
   group = c(rep("olig2", 17), rep("neun", 17)),
   donor = c(
-    # olig (17): 
+    #Olig (17): 
     1:17,
-    # neun (17):
+    #Neun (17):
     1:17
   ),
   stringsAsFactors = FALSE
 )
 
 
-# Covariates:
+#Covariates:
 covariates <- data.frame(donor = factor(metadata$donor, levels = 1:17))
 
 #Doing the analysis with the correction for overdispersion: "MN".
@@ -214,43 +210,39 @@ myDiff <- calculateDiffMeth(meth,
 
 
 ### !!! From this point on, moved to another work station. Files were inserted in path: file.path(PATH, "Dataset_2", "2_BS-Seq") ###
+## Reading:
+#myDiff <- readMethylDB(file.path(PATH, "Dataset_2", "2_BS-Seq", "methylDiff_united_diff.txt.bgz"))
 
 
-##Reading
-myDiff <- readMethylDB(file.path(PATH, "Dataset_2", "2_BS-Seq", "methylDiff_united_diff.txt.bgz"))
-
-
-##Finally: selecting differentially methylated bases:
-#get all differentially methylated bases
+## Selecting differentially methylated bases:
+#All differentially methylated bases:
 myDiff25p=getMethylDiff(myDiff, difference=25, qvalue=0.01, suffix = "25p")
-#myDiff25p_df <- data.frame(as(myDiff25p, "GRanges"))
-#get yper and hypo-only DM
+
+#Hyper and hypo-only DM:
 myDiff25p.hyper=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hyper", suffix = "25p_hyper")
 myDiff25p.hypo=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hypo", suffix = "25p_hypo")
 
+## Graph: volcano plot
 
-#subsample
+#Too many sites for the plot. Filtering high qvalue and low meth.diff values. Subsampling:
 SUBSAMPLE_N <- 1000
 set.seed(42)
 
-## Volcano plot
 myDiff_df <- as.data.frame(as(myDiff, "GRanges"))
-# #Too many sites for the plot. Filtering high qvalue and low meth.diff values:
 myDiff_df_plot <- myDiff_df[!is.na(myDiff_df$qvalue) & 
                               myDiff_df$qvalue < 0.4 & 
                               abs(myDiff_df$meth.diff) > 4, ]
 
-# Subsample del totale (significativi inclusi)
 if (nrow(myDiff_df_plot) > SUBSAMPLE_N) {
   myDiff_df_plot <- myDiff_df_plot[sample(nrow(myDiff_df_plot), SUBSAMPLE_N), ]
 }
 
-# Riordina: significativi in coda → disegnati sopra
+#Reordering: significant on top
 is_sig <- myDiff_df_plot$qvalue < 0.01 & abs(myDiff_df_plot$meth.diff) > 25
 myDiff_df_plot <- rbind(myDiff_df_plot[!is_sig, ], myDiff_df_plot[is_sig, ])
-df_sig <- myDiff_df_plot[myDiff_df_plot$qvalue < 0.01 &
-                           abs(myDiff_df_plot$meth.diff) > 25, ]
+df_sig <- myDiff_df_plot[myDiff_df_plot$qvalue < 0.01 & abs(myDiff_df_plot$meth.diff) > 25, ]
 
+#Plotting:
 gg <- ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
   geom_point(alpha = 0.5) +
   geom_hline(yintercept = -log10(0.01), linetype = "dashed", color = "blue") +
@@ -260,59 +252,59 @@ gg <- ggplot(myDiff_df_plot, aes(x = meth.diff, y = -log10(qvalue))) +
   labs(title = sprintf("Volcano plot: D2 DM analysis",
                        nrow(myDiff_df_plot), nrow(df_sig)),
        x = "meth.diff", y = "-log10(adj pvalue)")
-#print(gg)
+print(gg)
 
 
 
 ### 4. Coordinate conversion, annotation and export of DM sites ###
 
 ##Liftover
-## Before doing the annotation, it is important to note that the methyl calling was obtained with the h19 genome
-## But the RNA-Seq data quantification was done using the h38. For consistency it is good to switch to the h38 genome.
+## Before doing the annotation, it is important to note that the methyl calling was obtained with the hg19 genome
+## But the RNA-Seq data quantification was done using the hg38. For consistency it is good to switch to the hg38 genome.
 #Doing this with liftOver()
 
-#Download chain and meth files
+#Downloading chain and meth files
 chain <- import.chain(file.path(PATH, "references", "hg19ToHg38.over.chain"))
 meth <- readMethylDB(file.path(PATH, "Dataset_2", "2_BS-Seq", "methylBase_united.txt.bgz"))
 
+#meth_dm only has DM sites
 dm_hg19_GR <- as(myDiff25p, "GRanges")
 meth_dm <- selectByOverlap(meth, dm_hg19_GR)
 
-# meth_dm only has DM sites
 meth_dm_GR <- as(meth_dm, "GRanges")
 
 
 ### Now the liftovers: hg19 -> hg38
 
-##First, liftover and exporting the meth25p
+## First, liftover and export of meth25p
 seqlevelsStyle(meth_dm_GR) <- "UCSC"
 meth_DM_hg38 <- unlist(liftOver(meth_dm_GR, chain))
 
-#Now exporting
+#Exporting:
 meth_DM_hg38_df <- as.data.frame(meth_DM_hg38)
 meth_DM_hg38_df$coord_key <- paste(meth_DM_hg38_df$seqnames, meth_DM_hg38_df$start, sep="_")
 write.csv(meth_DM_hg38_df, file.path(PATH, "Dataset_2", "2_BS-Seq", "meth25p.csv"), row.names = FALSE)
 
 
-## Then, liftover for myDiff25p:
+## Then, liftover and export of myDiff25p:
 myDiff25p_GR <- as(myDiff25p, "GRanges")
 seqlevelsStyle(myDiff25p_GR) <- "UCSC"
 myDiff25p_GR_hg38 <- unlist(liftOver(myDiff25p_GR, chain))
-#df and coord_key
+#Adding coord_key
 myDiff25p_GR_hg38$coord_key <- paste(seqnames(myDiff25p_GR_hg38), start(myDiff25p_GR_hg38), sep = "_")
 
 #Exporting DM sites:
 saveRDS(myDiff25p_GR_hg38, file = file.path(PATH, "Dataset_2", "2_BS-Seq", "myDiff25p_GR_hg38.rds"))
 
-#dev.off()
+dev.off()
 
 
 
-#Karyo visualization
+## Karyo visualization
 pdf(file.path(PATH, "Dataset_2", "2_BS-Seq", "Chr DM distribution D2.pdf"), width = 12, height = 8)
 
 ## Graph: Position of methylation sites on all chromosomes
-## Checking if their position is clusterized around centromeres. Then considering filtering
+## Checking if their position is clusterized around centromeres.
 
 kp <- plotKaryotype(genome="hg38")
 kp <- kpPlotDensity(kp, myDiff25p_GR_hg38)

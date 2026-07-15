@@ -17,7 +17,7 @@ pdf(file.path(PATH, "Dataset_0", "2_BS-Seq", "WGBS Graphs D0.pdf"), width = 12, 
 #Setting file directory
 setwd(file.path(PATH, "Dataset_0", "2_BS-Seq"))
 
-#names of the import files
+#Names of the import files
 files_df <- read.delim(file.path(PATH, "Dataset_0", "Ground Truth", "samples.tsv"))
 files_tmp <- paste0(files_df$sample, ".txt")
 files <- file.path(PATH, "Dataset_0", "2_BS-Seq", "wgbs", files_tmp)
@@ -28,7 +28,7 @@ sample_names = files_df$sample
 
 
 ##Using MethylSeq.This tool expects a different format, so creating the methylKit object:
-methyl_obj <- new("methylRawList",                          #methylraw class is defined in the methylKit library
+methyl_obj <- new("methylRawList",                             #methylraw class is defined in the methylKit library
                   lapply(seq_along(files), function(i) {
                     df <- fread(files[i], header = TRUE, col.names = c("chr", "pos", "M", "M+U"))
                     new("methylRaw",
@@ -50,13 +50,13 @@ methyl_obj <- new("methylRawList",                          #methylraw class is 
 )
 
 
-#Stats visualization
+## Stats visualization
 #Methylation
 par(mfrow = c(5, 5))
 for (i in 1:100) {
   getMethylationStats(methyl_obj[[i]], plot = TRUE, both.strands = FALSE)
 }
-# 
+ 
 #Coverage
 par(mfrow = c(5, 5))
 for (i in 1:100) {
@@ -67,37 +67,34 @@ for (i in 1:100) {
 par(mfrow = c(1, 1))
 
 
+
 ### 2. Filtering and uniting ###
 
 #Analyzing the data:
-# 1. Checking means of coverage
+#1. Checking means of coverage
 sapply(methyl_obj, function(x) mean(getData(x)$coverage)) 
-# 2. Percentiles
+#2. Percentiles
 cov_max <- do.call(pmax, lapply(methyl_obj, function(x) getData(x)$coverage))
 quantile(cov_max, c(0.99, 0.999, 0.9999, 0.99999))
 
-#Based on these quantiles, the coverage filter must be decided. Standard is 10, but if the medians are lower it must be changed
-#PCR artifacts abundance will instead set ceiling threshold.
 
-##Filtering: NO filtering for the positive control dataset
-#filtered_methyl_obj=filterByCoverage(methyl_obj,lo.count=5,lo.perc=NULL,
-#                                     hi.count=NULL,hi.perc=99.99)
+## Filtering: NO filtering for the positive control dataset
 
-##Merging
+
+## Merging
 meth=unite(methyl_obj, destrand=FALSE)
 
 rm(methyl_obj)
 
-##Explorative analysis on the merged:
+
+## Explorative analysis on the merged:
 clusterSamples(meth, dist="correlation", method="ward.D2", plot=TRUE)
 PCASamples(meth)
-
-#If clustering doesn't follow the expected paired design, a batch effect may be present.
-
 
 
 
 ### 3. Differential Analysis ###
+
 covariates <- data.frame(pair = factor(files_df$pair))
 
 #Doing the analysis with the correction for overdispersion: "MN".
@@ -107,15 +104,16 @@ myDiff <- calculateDiffMeth(meth,
                             test = "F")
 
 
-##Finally: selecting differentially methylated bases:
-#get all differentially methylated bases
+## Selecting differentially methylated bases:
+#All differentially methylated bases:
 myDiff25p=getMethylDiff(myDiff,difference=25,qvalue=0.01)
-#get hyper and hypo
+
+#Hyper and hypo-only DM:
 myDiff25p.hyper=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hyper")
 myDiff25p.hypo=getMethylDiff(myDiff,difference=25,qvalue=0.01,type="hypo")
 
 
-##Volcano plot
+## Graph: volcano plot
 myDiff_df <- as.data.frame(as(myDiff, "GRanges"))
 
 
@@ -136,14 +134,13 @@ ggplot(myDiff_df, aes(x = meth.diff, y = -log10(qvalue))) +
 dm_GR <- as(myDiff25p, "GRanges")
 meth_dm <- selectByOverlap(meth, dm_GR)
 
-# meth_dm only has DM sites
+#meth_dm only has DM sites
 meth_dm_GR <- as(meth_dm, "GRanges")
 
-#Now exporting
+## Exporting
 meth_DM_df <- as.data.frame(meth_dm_GR)
 meth_DM_df$coord_key <- paste(meth_DM_df$seqnames, meth_DM_df$start, sep="_")
 write.csv(meth_DM_df, file.path(PATH, "Dataset_0", "2_BS-Seq", "meth25p.csv"), row.names = FALSE)
-
 
 #Now myDiff25p
 myDiff25p_GR <- as(myDiff25p, "GRanges")
@@ -167,10 +164,10 @@ kp <- kpPlotDensity(kp, myDiff25p_GR)
 dev.off()
 
 
-##Output data:
+## Output data:
 Output_df <- read.csv(file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_1.csv"))
 
-#Generating new output:
+## Generating new output:
 Output_df <- rbind(Output_df, data.frame(metric = c("CpG sites", "CpG DM sites"), value = c(nrow(getData(meth)), nrow(getData(myDiff25p)))))
 
 write.csv(Output_df, file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_2.csv"), row.names = FALSE)

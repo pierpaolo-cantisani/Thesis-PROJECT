@@ -5,35 +5,20 @@ library(ggplot2)
 library(cowplot)
 library(writexl)
 
+
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
-
-### Razionale Analisi: 
-
-##Pipeline 0: Considera quanto ogni metodo identifica il sottoinsieme di geni intersezione DE DM
-
-##Pipeline 1: Considera quante delle associazioni nell'intersezione sono "significative" per ogni metodo. 
-# Se un metodo ha una % di significativi più alta si può dire che "fa associazioni più affidabili" 
-
-##Pipeline 2 mi restituisce quanto ogni metodo è in grado di catturare il trend generale dei siti DM. 
-# Dà risultati diversi dalla pipeline 1 ma vanno interpretati correttamente:
-# Non c'è intersezione DE, quindi questa mi dice: quale metodo trova più "quadranti", e "precision" in generale
-
-
-
-#QUINDI:  PIP0 è esplorativa sulla lista di geni
-#         PIP1 chiede se metilazione ed espressione co-variano a livello individuale. 
-#         PIP2 chiede se la direzione dell'effetto disease è concorde tra le due omiche.
-
 
 pdf(file.path(PATH, "Dataset_0", "4_Integration_results", "Base_comparison D0.pdf"))
 
-#Importing:
+
+### Importing files ###
+
 #Importing RNA-Seq DE genes
 sign_DE <- read.csv(file.path(PATH, "Dataset_0", "1_RNA-Seq", "DE_results.csv"))
 sign_DE <- sign_DE %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 meth25p <- read.csv(file.path(PATH, "Dataset_0", "2_BS-Seq", "meth25p.csv"))
 
-#This will be different for the different lists:
+#Importing CpG-gene associations for each method:
 M1_df <- read.csv(file.path(PATH, "Dataset_0", "3_Benchmark", "DM_sites_Met1.csv"))
 M2_df <- read.csv(file.path(PATH, "Dataset_0", "3_Benchmark", "DM_sites_Met2.csv"))
 M3_df <- read.csv(file.path(PATH, "Dataset_0", "3_Benchmark", "DM_sites_Met3.csv"))
@@ -44,7 +29,7 @@ M5_df <- read.csv(file.path(PATH, "Dataset_0", "3_Benchmark", "DM_sites_Met5.csv
 
 ##### --- PIPELINE 0: Simple Intersection --- #####
 
-#Imserting BS-Seq DM sites into a list
+#Inserting BS-Seq DM sites into a list
 M_list <- list()
 M_list[[1]] <- M1_df
 M_list[[2]] <- M2_df
@@ -68,7 +53,7 @@ colnames(inters_table) <- paste0("M", seq_along(M_list))
 names(M_list) <- paste0("M", seq_along(M_list))
 
 
-##Upset plot pre-Statistic
+## Upset plot pre-Statistic
 M_symbol_list <- lapply(M_list, function(x) {
   s <- x$SYMBOL
   s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
@@ -84,7 +69,7 @@ upset(fromList(M_symbol_list),
 
 
 ## !! Important table. Table of the upset plot with gene names
-### Obtaining and exporting the names of the genes for categories in the upset plot:
+## Obtaining and exporting the names of the genes for categories in the upset plot:
 
 #Using M_symbol_list, used for the Upset plot
 all_genes  <- unique(unlist(M_symbol_list))
@@ -99,11 +84,11 @@ category_label <- apply(membership, 1, function(present) {
 #Grouping genes for category
 genes_by_region <- split(all_genes, category_label)
 
-# Sorting categories: first for # of Method (degree), then alphabetical
+#Sorting categories: first for # of Method (degree), then alphabetical
 degree <- sapply(strsplit(names(genes_by_region), "&"), length)
 genes_by_region <- genes_by_region[order(degree, names(genes_by_region))]
 
-# Naming columns with category:
+#Naming columns with category:
 #   "M1"       -> "unique M1"
 #   "M1&M2"    -> "M1&M2"
 cate_names <- sapply(names(genes_by_region), function(r) {
@@ -117,7 +102,7 @@ cate_names <- sapply(names(genes_by_region), function(r) {
 max_len <- max(sapply(genes_by_region, length))
 Upset_genes <- lapply(genes_by_region, function(g) {
   g <- sort(g)
-  c(g, rep("", max_len - length(g)))   # empty cells
+  c(g, rep("", max_len - length(g)))   #empty cells
 })
 
 Upset_genes_df <- as.data.frame(Upset_genes, stringsAsFactors = FALSE, check.names = FALSE)
@@ -129,10 +114,6 @@ write_xlsx(Upset_genes_df, file.path(PATH, "Dataset_0", "4_Integration_results",
 
 #####
 ##### --- PIPELINE 1: Vector Comparison --- #####
-
-#This pipeline only considers the sites that were found to be differentially methylated in the condition (TB-CTRL)
-#These (for each different benchmark method) are intersected with DE genes (from DESeq2).
-#On this gene set a statistic is obtained, to assess how many of these are "significant" associations. Then methods will be compared on this.
 
 ### FUNCTIONS ###
 
@@ -170,17 +151,15 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
 
 
 
-
 ### 1. Importing files and Matrix creation ###
 
 ## Importing files
-
 #meth25p, sign_DE, M1-5_df already imported. Only missing dds:
 dds <- readRDS(file.path(PATH, "Dataset_0", "1_RNA-Seq", "dds.rds"))
 
 
-##Methylation: Creating the DM matrix:
-# Selecting columns numCs and numTs by names
+##Methylation: Creating the DM matrix
+#Selecting columns numCs and numTs by names
 cs_cols <- grep("^numCs\\d+$", colnames(meth25p), value = TRUE)
 ts_cols <- grep("^numTs\\d+$", colnames(meth25p), value = TRUE)
 
@@ -188,14 +167,14 @@ ts_cols <- grep("^numTs\\d+$", colnames(meth25p), value = TRUE)
 numCs <- as.matrix(meth25p[, cs_cols])
 numTs <- as.matrix(meth25p[, ts_cols])
 
-# Obtaining the matrix for M-values (log2((numCs + 1) / (numTs + 1)))
+#Obtaining the matrix for M-values (log2((numCs + 1)/(numTs + 1)))
 Matrix_Mv <- log2((numCs + 1) / (numTs + 1))
 
 #Changing col and row names
 rownames(Matrix_Mv) <- meth25p$coord_key
-
 new_names <- sub("numCs", "", colnames(Matrix_Mv))
 colnames(Matrix_Mv) <- new_names
+
 
 
 ### 2.a Spearman Correlation Delta ###
@@ -213,22 +192,24 @@ vst_expr_matrix <- assay(vst_dds)
 #"n_pairs" called before
 vst_expr_matrix_new <- sapply(seq_len(n_pairs), function(k) vst_expr_matrix[, k + n_pairs] - vst_expr_matrix[, k])
 
+## Creating matrices
+#Not all initial genes are mantained here. Only the ones that were present in the experimental universe
 Matrix_exp <- list()
 Matrix_exp[[1]] <- create_DE_matrix(M1_df$SYMBOL, vst_expr_matrix_new, sign_DE$SYMBOL)
 Matrix_exp[[2]] <- create_DE_matrix(M2_df$SYMBOL, vst_expr_matrix_new, sign_DE$SYMBOL)
 Matrix_exp[[3]] <- create_DE_matrix(M3_df$SYMBOL, vst_expr_matrix_new, sign_DE$SYMBOL)
 Matrix_exp[[4]] <- create_DE_matrix(M4_df$SYMBOL, vst_expr_matrix_new, sign_DE$SYMBOL)
 Matrix_exp[[5]] <- create_DE_matrix(M5_df$SYMBOL, vst_expr_matrix_new, sign_DE$SYMBOL)
-## Not all initial genes are mantained here. Only the ones that were present in the "universe"
 
 
-## Obtaining the Matrices Mval for each different method:
+## Obtaining the Mval Matrices for each different method:
 Matrix_Mval <- list()
 Matrix_Mval[[1]] <- create_DM_matrix(M1_df, Matrix_Mv_new, Matrix_exp[[1]])
 Matrix_Mval[[2]] <- create_DM_matrix(M2_df, Matrix_Mv_new, Matrix_exp[[2]])
 Matrix_Mval[[3]] <- create_DM_matrix(M3_df, Matrix_Mv_new, Matrix_exp[[3]])
 Matrix_Mval[[4]] <- create_DM_matrix(M4_df, Matrix_Mv_new, Matrix_exp[[4]])
 Matrix_Mval[[5]] <- create_DM_matrix(M5_df, Matrix_Mv_new, Matrix_exp[[5]])
+
 
 ## Final check. Before statistics, we must check that the matrices are coherent
 for (m in seq_along(Matrix_exp)) {
@@ -237,7 +218,7 @@ for (m in seq_along(Matrix_exp)) {
 message("CHECK PASSED")
 
 
-##Spearman
+## Spearman
 Spear_res_list <- list()
 Spear_padj_list <- list()
 for(m in seq_along(Matrix_exp)) {
@@ -264,30 +245,31 @@ names(Spear_padj_list) <- paste0("M", seq_along(Matrix_exp))
 ### 2.b Spearman Correlation eQTM ###
 
 #Subtracting the ctrl mean to ctrl samples and case mean to case samples
-#methylation
+#Methylation
 ctl_mean <- rowMeans(Matrix_Mv[, 1:50, drop = FALSE])
 cas_mean <- rowMeans(Matrix_Mv[, 51:100, drop = FALSE])
 Matrix_Mv_Q <- Matrix_Mv
 Matrix_Mv_Q[, 1:50] <- Matrix_Mv_Q[, 1:50] - ctl_mean
 Matrix_Mv_Q[, 51:100] <- Matrix_Mv_Q[, 51:100] - cas_mean
 
-#expression
+#Expression
 ctl_vst_mean <- rowMeans(vst_expr_matrix[, 1:50, drop = FALSE])
 cas_vst_mean <- rowMeans(vst_expr_matrix[, 51:100, drop = FALSE])
 vst_expr_matrix_Q <- vst_expr_matrix
 vst_expr_matrix_Q[, 1:50] <- vst_expr_matrix_Q[, 1:50] - ctl_vst_mean
 vst_expr_matrix_Q[, 51:100] <- vst_expr_matrix_Q[, 51:100] - cas_vst_mean
 
+## Creating matrices
+#Not all initial genes are mantained here. Only the ones that were present in the experimental universe
 Matrix_exp_Q <- list()
 Matrix_exp_Q[[1]] <- create_DE_matrix(M1_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
 Matrix_exp_Q[[2]] <- create_DE_matrix(M2_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
 Matrix_exp_Q[[3]] <- create_DE_matrix(M3_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
 Matrix_exp_Q[[4]] <- create_DE_matrix(M4_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
 Matrix_exp_Q[[5]] <- create_DE_matrix(M5_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
-## Not all initial genes are mantained here. Only the ones that were present in the "universe"
 
 
-## Obtaining the Matrices Mval for each different method:
+## Obtaining the Mval Matrices for each different method:
 Matrix_Mval_Q <- list()
 Matrix_Mval_Q[[1]] <- create_DM_matrix(M1_df, Matrix_Mv_Q, Matrix_exp_Q[[1]])
 Matrix_Mval_Q[[2]] <- create_DM_matrix(M2_df, Matrix_Mv_Q, Matrix_exp_Q[[2]])
@@ -295,7 +277,8 @@ Matrix_Mval_Q[[3]] <- create_DM_matrix(M3_df, Matrix_Mv_Q, Matrix_exp_Q[[3]])
 Matrix_Mval_Q[[4]] <- create_DM_matrix(M4_df, Matrix_Mv_Q, Matrix_exp_Q[[4]])
 Matrix_Mval_Q[[5]] <- create_DM_matrix(M5_df, Matrix_Mv_Q, Matrix_exp_Q[[5]])
 
-##Spearman
+
+## Spearman
 Spear_res_Q_list <- list()
 Spear_padj_Q_list <- list()
 for(m in seq_along(Matrix_exp_Q)) {
@@ -318,11 +301,12 @@ names(Spear_res_Q_list) <- paste0("M", seq_along(Matrix_exp_Q))
 names(Spear_padj_Q_list) <- paste0("M", seq_along(Matrix_exp_Q))
 
 
+
 ### 3. Visualizations for METHOD COMPARISONS ###
 
-## Identifying unique/intersecting/common genes to all methods ##
+## 3.1 Identifying unique/intersecting/common genes to all methods ##
 
-## 3.1 Upset plot Spearman Delta ##
+#Upset plot Spearman Delta
 Spear_symbol_list <- lapply(Spear_padj_list, function(x) {
   s <- x$SYMBOL
   s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
@@ -357,14 +341,13 @@ if (sum(lengths(Spear_symbol_Q_list) > 0) >= 2) {
 }
 
 
-
 ## 3.2 Spearman correlation visualization ##
 
-# Rho distribution in methods
+## Density plots: rho distribution in methods
 
 #Delta
 df_Spear <- bind_rows(Spear_padj_list, .id = "method")
-#Density
+#Plotting:
 ggplot(df_Spear, aes(x = rho, fill = method)) +
   geom_density(alpha = 0.4) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
@@ -373,7 +356,7 @@ ggplot(df_Spear, aes(x = rho, fill = method)) +
 
 #eQTM
 df_Spear_Q <- bind_rows(Spear_padj_Q_list, .id = "method")
-#Density
+#Plotting:
 ggplot(df_Spear_Q, aes(x = rho, fill = method)) +
   geom_density(alpha = 0.4) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
@@ -383,7 +366,7 @@ ggplot(df_Spear_Q, aes(x = rho, fill = method)) +
 
 ## 3.3 Barplot: significant vs tested pairs (stacked) ##
 
-# Builds a long df: for each method -> Significant + Non significant counts
+#Building a long df: for each method -> Significant + Non significant counts
 make_sig_barplot_df <- function(res_list, padj_list) {
   do.call(rbind, lapply(seq_along(res_list), function(i) {
     tot <- nrow(res_list[[i]])
@@ -398,12 +381,12 @@ make_sig_barplot_df <- function(res_list, padj_list) {
 }
 
 plot_sig_bar <- function(df, res_list, title) {
-  # keep method order M1..M5 (not alphabetical surprises)
+  #Keep method order M1..M5 (not alphabetical surprises)
   df$method   <- factor(df$method, levels = names(res_list))
-  # stacking order: Significant on top of Non significant
+  #Stacking order: Significant on top of Non significant
   df$category <- factor(df$category, levels = c("Non significant", "Significant"))
   
-  # totals + significant fraction, for labels
+  #Totals + significant fraction, for labels
   totals <- do.call(rbind, lapply(names(res_list), function(m) {
     sub <- df[df$method == m, ]
     tot <- sum(sub$count)
@@ -415,10 +398,10 @@ plot_sig_bar <- function(df, res_list, title) {
   
   ggplot(df, aes(x = method, y = count, fill = category)) +
     geom_col(width = 0.7) +
-    # total tested pairs on top of each bar
+    #Total tested pairs on top of each bar
     geom_text(data = totals, aes(x = method, y = tot, label = tot),
               inherit.aes = FALSE, vjust = -0.4, size = 3) +
-    # % significant inside the colored segment
+    #% significant inside the colored segment
     geom_text(data = totals,
               aes(x = method, y = tot, label = sprintf("%d (%.1f%%)", sig, perc)),
               inherit.aes = FALSE, vjust = 1.4, size = 2.8, color = "grey20") +
@@ -439,6 +422,8 @@ print(plot_sig_bar(bar_qtm,   Spear_res_Q_list,
 
 
 ## 3.4 Percentage of significant and unique/different genes ##
+
+#Cleaning
 strip_suffix <- function(x) unique(sub("\\.\\d+$", "", x))
 
 compare_table <- data.frame(
@@ -489,10 +474,6 @@ Pip1_table <- Pip1_table[-1, ]
 #####
 ##### --- PIPELINE 2: Scalar comparison --- #####
 
-#In this pipeline every DM-DE association is compared with 1 scalar value: log2FC (expr) and mean Mvalue[TB-Ctrl] (methyl) 
-#What is extracted is the directionality of the whole dataset's associations: quadrants
-
-
 ### FUNCTIONS ###
 
 create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataframe) {
@@ -506,13 +487,12 @@ create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataf
 }
 
 
-
 ### 1. Matrix/dataframes creation ###
 
 ##All files imported at the beginning of the script
 
-##Methylation: Creating the DM matrix:
-# Selecting columns numCs and numTs by names
+## Methylation: Creating the DM matrix:
+#Selecting columns numCs and numTs by names
 cs_cols <- grep("^numCs\\d+$", colnames(meth25p), value = TRUE)
 ts_cols <- grep("^numTs\\d+$", colnames(meth25p), value = TRUE)
 
@@ -540,8 +520,6 @@ Method_final_df[[2]] <- create_integr_df(M2_df, Mean_Mv_df, sign_DE)
 Method_final_df[[3]] <- create_integr_df(M3_df, Mean_Mv_df, sign_DE)
 Method_final_df[[4]] <- create_integr_df(M4_df, Mean_Mv_df, sign_DE)
 Method_final_df[[5]] <- create_integr_df(M5_df, Mean_Mv_df, sign_DE)
-## Not all intial genes are mantained here. Only the ones that were present in the "universe"
-
 
 
 #Filtering rows with NA (SYMBOLS not in common between Method e rnaseq are NA after "create_integr_df()")
@@ -555,9 +533,10 @@ Method_final_df <- lapply(Method_final_df, function(df) {
 names(Method_final_df) <- paste0("M", seq_along(Method_final_df))
 
 
-### 2. Comparison
 
-# How many expected association does each method find? 
+### 2. Comparison ###
+
+## How many expected association does each method find? 
 quadrant_enrichment <- sapply(Method_final_df, function(df) {
   gene_df <- df %>%
     group_by(coord_key) %>%
@@ -576,10 +555,10 @@ quadrant_enrichment <- sapply(Method_final_df, function(df) {
   expected_total <- q2 + q4
   unexpected_total <- q1 + q3
   
-  #And statistics: Binomial test: H0 = 50/50 split, H1 = expected > unexpected
+  #Statistics: Binomial test: H0 = 50/50 split, H1 = expected > unexpected
   p_bin_test <- binom.test(expected_total, expected_total + unexpected_total, p = 0.5, alternative = "greater")$p.value
   
-  #This next one (expected_perc) is the fundamental metric: the % of points in the expected quadrants.
+  #"expected_perc" is the fundamental metric: the % of points in the expected quadrants.
   c(expected_perc = 100 * expected_total / tot,
     odds_ratio = expected_total / unexpected_total, 
     pvalue_quadrants = p_bin_test,
@@ -591,7 +570,8 @@ quadrant_enrichment <- sapply(Method_final_df, function(df) {
 
 quadrant_table <- as.data.frame(quadrant_enrichment)
 
-#Multiple test correction: BH
+
+## Multiple test correction: BH
 quadrant_table["pvalue_quadrants_BH", ] <- p.adjust(
   as.numeric(quadrant_table["pvalue_quadrants", ]), 
   method = "BH"
@@ -623,9 +603,9 @@ for(m in seq_along(Method_final_df)) {
 grid <- plot_grid(plotlist = gg_list, nrow = 2, ncol = 3)
 print(grid)
 
-#Exporting the Method_df list
-write_xlsx(Method_final_df, file.path(PATH, "Dataset_0", "4_Integration_results", "Method_final_df.xlsx"))
 
+## Exporting the Method_df list
+write_xlsx(Method_final_df, file.path(PATH, "Dataset_0", "4_Integration_results", "Method_final_df.xlsx"))
 
 
 ## Writing outputs
@@ -642,15 +622,15 @@ dev.off()
 Output_bench <- read.csv(file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_3.csv"), row.names = NULL)
 
 #Stats for eQTM: 100 pairs
-# il control: le 100 coppie eqtm devono uscire sig con rho NEGATIVO in M2
+#Control: the 100 eqtm couples must have negative rho in M2
 eqtm <- read.delim(file.path(PATH, "Dataset_0", "Ground Truth", "eqtm_pairs.tsv"))
 eqtm_keys <- eqtm$coord_key
 m2q <- Spear_res_Q_list[[2]]
-recall  <- mean(eqtm_keys %in% m2q$coord_key[m2q$padj < 0.05 & m2q$rho < 0])  # % presa dei 100 significativi eQTM
-# fallout sulle both-non-eqtm:
+recall  <- mean(eqtm_keys %in% m2q$coord_key[m2q$padj < 0.05 & m2q$rho < 0])  #% of 100 eQTM significant
+#Fallout on both-non-eqtm:
 both_keys    <- M2_df$coord_key[M2_df$SYMBOL %in% sign_DE$SYMBOL]
 noneqtm_keys <- setdiff(both_keys, eqtm_keys)
-fallout <- mean(noneqtm_keys %in% m2q$coord_key[m2q$padj < 0.05]) # % dei DE DM che esce statisticamente significativo ERRONEAMENTE rispetto 
+fallout <- mean(noneqtm_keys %in% m2q$coord_key[m2q$padj < 0.05])             #% of the DE/DM that comes out statistically significant ERRONEOUSLY
 fdr <- length(setdiff(m2q$coord_key[m2q$padj < 0.05], eqtm_keys))/(length(setdiff(m2q$coord_key[m2q$padj < 0.05], eqtm_keys)) + length(eqtm_keys))
 
 

@@ -20,7 +20,7 @@ GR_df <- as.data.frame(myDiff25p_GR_hg38)
 general_df <- GR_df[, c("seqnames", "start", "meth.diff")]
 general_df$coord_key <- paste(general_df$seqnames, general_df$start, sep="_")
 
-#In this pipeline the GRanges object for the annotations will be:
+#For all methods the GRanges object for the annotations will be:
 GR_data <- myDiff25p_GR_hg38
 
 #Ref for M1 and M5
@@ -32,7 +32,6 @@ annoData <- genes(txdb)
 
 
 ### Association CpG-Gene : Methods ###
-
 
 ### FUNCTIONS ###
 
@@ -72,7 +71,7 @@ symbols <- mapIds(org.Hs.eg.db,
                   multiVals = "first")
 tss_df$gene.symbol <- symbols
 
-#Now extracting the associated region_type (!! For this method this is not necessarily a region in the associated gene. It just says in what kind of region the CpG is)
+#Extracting the associated region_type (!! For this method this is not necessarily a region in the associated gene. It just says in what kind of region the CpG is)
 members <- getMembers(diffCpGann)
 region_type <- apply(members, 1, function(m) {
   if (m["prom"]   == 1) return("promoter")
@@ -103,7 +102,7 @@ M1 <- write_output_file(general_df, DM_sites_M1, 1)
 
 #Annotation:
 peakAnno <- annotatePeak(GR_data,
-                         tssRegion = c(-2000, 200),   #This is the standard definition for Promoter. Can be arbitrarly changed
+                         tssRegion = c(-2000, 200),   #This is a standard definition for Promoter. Can be arbitrarily changed
                          TxDb      = txdb,
                          annoDb    = "org.Hs.eg.db")
 
@@ -125,6 +124,7 @@ M3 <- write_output_file(general_df, DM_sites_M3, 3)
 
 ##### Method 4: CpG is in a range [-10 kb, + 10 kb] from TSS #####
 
+#Defining the TSS
 tss_points <- promoters(annoData, upstream = 0, downstream = 1)
 
 #CpG-gene association
@@ -189,7 +189,7 @@ great_df$SYMBOL <- as.character(symbols_5)
 great_df$coord_key <- paste(great_df$seqnames, great_df$start, sep = "_")
 great_final <- great_df %>% filter(!is.na(SYMBOL))
 
-#Final output for Method 5:
+## Final output for Method 5:
 DM_sites_M5 <- great_final[, c("SYMBOL", "coord_key", "distanceToTSS")]
 M5 <- write_output_file(general_df, DM_sites_M5, 5)
 

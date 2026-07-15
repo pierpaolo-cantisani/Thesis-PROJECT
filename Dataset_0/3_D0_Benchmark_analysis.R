@@ -8,20 +8,20 @@ library(GenomicFeatures)
 library(GenomicRanges)
 library(rGREAT)
 
-### Only for Dataset_0 CHIPseeker uses Gencode as reference (not Org.Hs). In this way M2: CHIPseeker becomes the reference for the positivo 
+### Only for Dataset_0 CHIPseeker uses Gencode as reference (not Org.Hs). In this way M2: CHIPseeker becomes the reference for the positive 
 ### ctrl that is Dataset_0. M2 is the default, and difference from other methods must be valued as relative to this reference
 
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 ### Importing data ###
-##Importing myDiff
+#Importing myDiff
 myDiff25p_GR <- readRDS(file.path(PATH, "Dataset_0", "2_BS-Seq", "myDiff25p_GR.rds"))
 #General df
 GR_df <- as.data.frame(myDiff25p_GR)
 general_df <- GR_df[, c("seqnames", "start", "meth.diff")]
 general_df$coord_key <- paste(general_df$seqnames, general_df$start, sep="_")
 
-# In this pipeline the GRanges object for the annotation will be:
+#For all methods the GRanges object for the annotation will be:
 GR_data <- myDiff25p_GR
 
 #Ref for M1 and M5
@@ -32,14 +32,14 @@ txdb <- maketxdbfromgff(
   format = "gtf"
 )
 
-#Used in M4 and M5
+#Needed for M4 and M5
 annoData <- genes(txdb)
 names(annoData) <- sub("\\.[0-9]+$", "", names(annoData))
 annoData$gene_id <- sub("\\.[0-9]+$", "", annoData$gene_id)
 
 
 
-### --- Association CpG-Gene : Methods --- ###
+### Association CpG-Gene : Methods ###
 
 ### FUNCTIONS ###
 
@@ -61,10 +61,10 @@ write_output_file <- function(general_df, specific_df, Method_n) {
 ## Importing reference (RefSeq hg38)
 gene.obj=readTranscriptFeatures(file.path(PATH, "references", "refseq.hg38.bed"))
 
-## Annotation
+#Annotation
 diffCpGann <- annotateWithGeneParts(GR_data, gene.obj)
 
-## Associated genes:
+#Associated genes:
 tss_df <- getAssociationWithTSS(diffCpGann)
 
 #Cleaning names and converting them to gene_symbol:
@@ -77,7 +77,8 @@ symbols <- mapIds(org.Hs.eg.db,
                   keytype   = "REFSEQ",
                   multiVals = "first")
 tss_df$gene.symbol <- symbols
-#Now extracting the associated region_type (!! For this method this is not necessarily a region in the associated gene. It just says in what kind of region the CpG is)
+
+#Extracting the associated region_type (!! For this method this is not necessarily a region in the associated gene. It just says in what kind of region the CpG is)
 members <- getMembers(diffCpGann)
 region_type <- apply(members, 1, function(m) {
   if (m["prom"]   == 1) return("promoter")
@@ -93,7 +94,8 @@ tss_df$distanceToTSS <- abs(tss_df$distanceToTSS)
 DM_sites_M1 <- data.frame(tss_df[, c("region_type", "SYMBOL", "distanceToTSS")])
 gr_for_M1 <- GR_data[tss_df$target.row]
 DM_sites_M1$coord_key <- paste(seqnames(gr_for_M1), start(gr_for_M1), sep="_")
-#Writing output file:
+
+## Writing output file:
 M1 <- write_output_file(general_df, DM_sites_M1, 1)
 
 
@@ -101,18 +103,18 @@ M1 <- write_output_file(general_df, DM_sites_M1, 1)
 
 ##### Methods 2 & 3: Nearest TSS with hierarchy(2), and proximal promoter(3) (CHIPseeker) #####
 
+## With CHIPseeker annotation the final list will contain the results of method 2. And the 
+## genes annotated as "Promoter" will be the results of method 3, with promoter defined as (-2000, 200).
 #Now using CHIPseeker (hg38)
-# Using txdb
+#Using txdb
 
-##With CHIPseeker annotation the final list will contain the results of method 2. And the 
-##genes annotated as "Promoter" will be the results of method 3, with promoter defined as (-2000, 200).
 #Annotation:
 peakAnno <- annotatePeak(GR_data,
-                         tssRegion = c(-2000, 200),   #This is the standard definition for Promoter. Can be arbitrarly changed
+                         tssRegion = c(-2000, 200),   #This is a standard definition for Promoter. Can be arbitrarly changed
                          TxDb      = txdb,
                          annoDb    = "org.Hs.eg.db")
 
-#Writing output file for Method 2:
+## Writing output file for Method 2:
 peakAnno_df <- as.data.frame(peakAnno)
 peakAnno_df <- peakAnno_df %>% dplyr::rename("region_type" = annotation)
 peakAnno_df$coord_key <- paste(peakAnno_df$seqnames, peakAnno_df$start, sep="_")
@@ -121,7 +123,7 @@ peakAnno_df$distanceToTSS <- abs(peakAnno_df$distanceToTSS )
 DM_sites_M2 <- data.frame(peakAnno_df[, c("region_type", "SYMBOL", "coord_key", "distanceToTSS")])
 M2 <- write_output_file(general_df, DM_sites_M2, 2)
 
-#Writing output file for Method 3:
+## Writing output file for Method 3:
 DM_sites_M3 <- peakAnno_df[(peakAnno_df$region_type == 'Promoter (<=1kb)') | (peakAnno_df$region_type == 'Promoter (1-2kb)'), ]
 DM_sites_M3 <- data.frame(DM_sites_M3[, c("region_type", "SYMBOL", "coord_key", "distanceToTSS")])
 M3 <- write_output_file(general_df, DM_sites_M3, 3)
@@ -130,6 +132,7 @@ M3 <- write_output_file(general_df, DM_sites_M3, 3)
 
 ##### Method 4: CpG is in a range [-10 kb, + 10 kb] from TSS #####
 
+#Defining TSS
 tss_points <- promoters(annoData, upstream = 0, downstream = 1)
 
 #Association CpG-gene
@@ -157,7 +160,7 @@ anno_range_10kb_df$coord_key <- paste(anno_range_10kb_df$seqnames, anno_range_10
 #Filtering: NO filtering for the + ctrl
 #anno_range_10kb_final <- anno_range_10kb_df %>% filter(!is.na(SYMBOL))
 
-#Writing output file:
+## Writing output file:
 DM_sites_M4 <- anno_range_10kb_df[, c("SYMBOL", "coord_key", "distanceToTSS")]
 M4 <- write_output_file(general_df, DM_sites_M4, 4)
 
@@ -166,6 +169,7 @@ M4 <- write_output_file(general_df, DM_sites_M4, 4)
 #####
 ##### METHOD 5: rGREAT (-5 kb, 1 kb) plus extension until nearest gene up to 1 MB in both directions #####
 
+#Defining the TSS
 TSS_map <- extendTSS(annoData, gene_id_type = "ENSEMBL", 
                      mode = "basalPlusExt", 
                      extend_from = "TSS", 
@@ -198,10 +202,11 @@ symbols_5 <- mapIds(org.Hs.eg.db,
 great_df$SYMBOL <- as.character(symbols_5)
 great_df$coord_key <- paste(great_df$seqnames, great_df$start, sep = "_")
 
-#Filtering: NO filtering for the + ctrl
-#great_final <- great_df %>% filter(!is.na(SYMBOL))
 
-#Final output for Method 5:
+## Filtering: NO filtering for the + ctrl
+
+
+## Final output for Method 5:
 DM_sites_M5 <- great_df[, c("SYMBOL", "coord_key", "distanceToTSS")]
 M5 <- write_output_file(general_df, DM_sites_M5, 5)
 
@@ -212,7 +217,6 @@ chk <- merge(DM_sites_M2[, c("coord_key","SYMBOL")],
              gt[, c("coord_key","m2_symbol")], by = "coord_key")
 m_chk <- mean(chk$SYMBOL == chk$m2_symbol, na.rm = TRUE)   # Must be 1 (or around)
 
-#
 Output_df2 <- read.csv(file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_2.csv"))
 Output_df2 <- rbind(Output_df2, data.frame(metric= "Correct associations ratio (M2)", value = m_chk))
 

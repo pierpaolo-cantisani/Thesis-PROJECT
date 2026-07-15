@@ -53,7 +53,7 @@ colnames(inters_table) <- paste0("M", seq_along(M_list))
 names(M_list) <- paste0("M", seq_along(M_list))
 
 
-## Upset plot pre-Statistic
+## Upset plot: pre-Statistic
 M_symbol_list <- lapply(M_list, function(x) {
   s <- x$SYMBOL
   s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
@@ -88,7 +88,7 @@ genes_by_region <- split(all_genes, category_label)
 degree <- sapply(strsplit(names(genes_by_region), "&"), length)
 genes_by_region <- genes_by_region[order(degree, names(genes_by_region))]
 
-# Naming columns with category:
+#Naming columns with category:
 #   "M1"       -> "unique M1"
 #   "M1&M2"    -> "M1&M2"
 cate_names <- sapply(names(genes_by_region), function(r) {
@@ -102,7 +102,7 @@ cate_names <- sapply(names(genes_by_region), function(r) {
 max_len <- max(sapply(genes_by_region, length))
 Upset_genes <- lapply(genes_by_region, function(g) {
   g <- sort(g)
-  c(g, rep("", max_len - length(g)))   # empty cells
+  c(g, rep("", max_len - length(g)))   #empty cells
 })
 
 Upset_genes_df <- as.data.frame(Upset_genes, stringsAsFactors = FALSE, check.names = FALSE)
@@ -150,7 +150,6 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
 
 
 
-
 ### 1. Importing files and Matrix creation ###
 
 ## Importing files
@@ -158,8 +157,8 @@ create_DM_matrix <- function(Method_df, M_matrix, DE_matrix) {
 dds <- readRDS(file.path(PATH, "Dataset_1", "1_RNA-Seq", "dds.rds"))
 
 
-## Methylation: Creating the DM matrix:
-# Selecting columns numCs and numTs by names
+## Methylation: Creating the DM site matrix
+#Selecting columns numCs and numTs by names
 cs_cols <- grep("^numCs\\d+$", colnames(meth25p), value = TRUE)
 ts_cols <- grep("^numTs\\d+$", colnames(meth25p), value = TRUE)
 
@@ -273,7 +272,6 @@ Matrix_exp_Q[[4]] <- create_DE_matrix(M4_df$SYMBOL, vst_expr_matrix_Q, sign_DE$S
 Matrix_exp_Q[[5]] <- create_DE_matrix(M5_df$SYMBOL, vst_expr_matrix_Q, sign_DE$SYMBOL)
 
 
-
 ## Obtaining the Mval Matrices for each different method:
 Matrix_Mval_Q <- list()
 Matrix_Mval_Q[[1]] <- create_DM_matrix(M1_df, Matrix_Mv_Q, Matrix_exp_Q[[1]])
@@ -307,8 +305,8 @@ names(Spear_padj_Q_list) <- paste0("M", seq_along(Matrix_exp_Q))
 
 ### 3. Visualizations for METHOD COMPARISONS ###
 
-## 3.1 Upset plot Spearman Delta ##
-#Identifying unique/intersecting/common genes to all methods
+## 3.1 Identifying unique/intersecting/common genes to all methods ##
+#Upset plot Spearman Delta
 Spear_symbol_list <- lapply(Spear_padj_list, function(x) {
   s <- x$SYMBOL
   s <- sub("\\.\\d+$", "", s)    # ".1", ".2", ... from repeated genes
@@ -345,12 +343,11 @@ if (sum(lengths(Spear_symbol_Q_list) > 0) >= 2) {
 
 ## 3.2 Spearman correlation visualization ##
 
-# Rho distribution in methods
-df_Spear <- bind_rows(Spear_padj_list, .id = "method")
-
-## Density
+## Density plots: rho distribution in methods
 
 #Delta
+df_Spear <- bind_rows(Spear_padj_list, .id = "method")
+#Plotting:
 ggplot(df_Spear, aes(x = rho, fill = method)) +
   geom_density(alpha = 0.4) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
@@ -359,7 +356,7 @@ ggplot(df_Spear, aes(x = rho, fill = method)) +
 
 #eQTM
 df_Spear_Q <- bind_rows(Spear_padj_Q_list, .id = "method")
-#Density
+#Plotting:
 ggplot(df_Spear_Q, aes(x = rho, fill = method)) +
   geom_density(alpha = 0.4) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
@@ -369,7 +366,7 @@ ggplot(df_Spear_Q, aes(x = rho, fill = method)) +
 
 ## 3.3 Barplot: significant vs tested pairs (stacked) ##
 
-## Building a long df: for each method -> Significant + Non significant counts
+#Building a long df: for each method -> Significant + Non significant counts
 make_sig_barplot_df <- function(res_list, padj_list) {
   do.call(rbind, lapply(seq_along(res_list), function(i) {
     tot <- nrow(res_list[[i]])
@@ -384,12 +381,12 @@ make_sig_barplot_df <- function(res_list, padj_list) {
 }
 
 plot_sig_bar <- function(df, res_list, title) {
-  #keeping method order M1..M5 (not alphabetical)
+  #Keeping method order M1..M5 (not alphabetical)
   df$method   <- factor(df$method, levels = names(res_list))
-  #stacking order: Significant on top of Non significant
+  #Stacking order: Significant on top of Non significant
   df$category <- factor(df$category, levels = c("Non significant", "Significant"))
   
-  #totals + significant fraction, for labels
+  #Totals + significant fraction, for labels
   totals <- do.call(rbind, lapply(names(res_list), function(m) {
     sub <- df[df$method == m, ]
     tot <- sum(sub$count)
@@ -401,7 +398,7 @@ plot_sig_bar <- function(df, res_list, title) {
   
   ggplot(df, aes(x = method, y = count, fill = category)) +
     geom_col(width = 0.7) +
-    #total tested pairs on top of each bar
+    #Total tested pairs on top of each bar
     geom_text(data = totals, aes(x = method, y = tot, label = tot),
               inherit.aes = FALSE, vjust = -0.4, size = 3) +
     #% of significant inside the colored segment
@@ -425,6 +422,8 @@ print(plot_sig_bar(bar_qtm,   Spear_res_Q_list,
 
 
 ## 3.4 Percentage of significant and unique/different genes ##
+
+#Cleaning
 strip_suffix <- function(x) unique(sub("\\.\\d+$", "", x))
 
 compare_table <- data.frame(
@@ -493,7 +492,7 @@ create_integr_df <- function(Method_dataframe, Mean_mv_dataframe, rnaseqFC_dataf
 ##All files were imported at the beginning of the script
 
 ## Methylation: Creating the DM matrix:
-# Selecting columns numCs and numTs by names
+#Selecting columns numCs and numTs by names
 cs_cols <- grep("^numCs\\d+$", colnames(meth25p), value = TRUE)
 ts_cols <- grep("^numTs\\d+$", colnames(meth25p), value = TRUE)
 
@@ -516,8 +515,7 @@ Mean_Mv_df <- data.frame(coord_key = rownames(Matrix_Mv_2),
                          Mv_mean = TB_mean - CTRL_mean)
 
 
-##Obtaining the integration matrices: For each CpG --> its mean Mvalue(subtracted conditions) + associated gene/s + its log2FC from the RNA-Seq
-#Not all intial genes are mantained here. Only the ones that were present in the "universe"
+## Obtaining the integration matrices: For each CpG --> its mean Mvalue(subtracted conditions) + associated gene/s + its log2FC from the RNA-Seq
 Method_final_df <- list()
 Method_final_df[[1]] <- create_integr_df(M1_df, Mean_Mv_df, sign_DE)
 Method_final_df[[2]] <- create_integr_df(M2_df, Mean_Mv_df, sign_DE)
@@ -540,7 +538,7 @@ names(Method_final_df) <- paste0("M", seq_along(Method_final_df))
 
 ### 2. Comparison ###
 
-# How many expected association does each method find? 
+## How many expected association does each method find? 
 quadrant_enrichment <- sapply(Method_final_df, function(df) {
   gene_df <- df %>%
     group_by(coord_key) %>%
@@ -557,10 +555,10 @@ quadrant_enrichment <- sapply(Method_final_df, function(df) {
   expected_total <- q2 + q4
   unexpected_total <- q1 + q3
   
-  #And statistics: Binomial test: H0 = 50/50 split, H1 = expected > unexpected
+  #Statistics: Binomial test: H0 = 50/50 split, H1 = expected > unexpected
   p_bin_test <- binom.test(expected_total, expected_total + unexpected_total, p = 0.5, alternative = "greater")$p.value
   
-  #expected_perc is the fundamental metric: the % of points in the expected quadrants.
+  #"expected_perc" is the fundamental metric: the % of points in the expected quadrants.
   c(expected_perc = 100 * expected_total / (expected_total + unexpected_total),
     odds_ratio = expected_total / unexpected_total, 
     pvalue_quadrants = p_bin_test)

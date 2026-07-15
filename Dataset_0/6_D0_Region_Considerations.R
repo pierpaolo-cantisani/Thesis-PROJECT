@@ -7,14 +7,12 @@ library(ggplot2)
 library(cowplot)
 library(openxlsx)
 
-## Variabile confondente da considerare!! Questa annotazione è con CHIPseeker (methods 2 e 3). Quindi questa analisi
-#  potrebbe avere risultati "biased"
-
-##! Metodi 1, 2 e 5 sono uguali. E metodi 3 e 4 sono sottoinsiemi di 1/2/5. Poco interessante
+### Methods 1, 2 and 5 are identical for this analysis. Methods 3 and 4 are subsets of 1/2/5
 
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
-#Importing DE genes
+
+## Importing DE genes
 DE_results <- read.csv(file.path(PATH, "Dataset_0", "1_RNA-Seq", "DE_results.csv"))
 DE_results <- DE_results %>% dplyr::rename(SYMBOL = hugo_symbol)  #renaming for coherence
 
@@ -31,6 +29,7 @@ graph_list <- list()
 Stats_region <- list()
 DM_ann_list <- list()
 
+
 for(METHOD in 1:5){
   
   #Importing association df
@@ -45,12 +44,12 @@ for(METHOD in 1:5){
                                     starts.in.df.are.0based = FALSE)
   seqlevelsStyle(DM_GR) <- "UCSC"
   
-  ## Annotation: CpG that were part of an association for each method are reannotated with the same tool (annotatr): in this way
-  #              they will be assigned to a gene region, and they will be comparable.
+  ## Annotation: CpG that were part of an association for each method are reannotated with the same tool (CHIPseeker): in this way
+  ##            they will be assigned to a gene region, and they will be comparable.
   #Using txdb
   
   peakAnno <- annotatePeak(DM_GR,
-                           tssRegion = c(-2000, 200),   #This is the standard definition for Promoter. Can be arbitrarly changed
+                           tssRegion = c(-2000, 200),   #This is a standard definition for Promoter. Can be arbitrarily changed
                            TxDb      = txdb,
                            annoDb    = "org.Hs.eg.db")
   DM_ann_df <- as.data.frame(peakAnno)
@@ -63,7 +62,7 @@ for(METHOD in 1:5){
   #Intersection:
   intersect_genes <- intersect(DE_results$SYMBOL, DM_ann_df$SYMBOL)
   
-  ## DMR on promoter/exon/intron/UTR/intergenic genes
+  ## DM sites on *region* genes
   prom_genes <- unique(DM_ann_df$SYMBOL[grepl("^Promoter", DM_ann_df$annotation)])
   exon_genes <- unique(DM_ann_df$SYMBOL[grepl("^Exon", DM_ann_df$annotation)])
   intron_genes <- unique(DM_ann_df$SYMBOL[grepl("^Intron", DM_ann_df$annotation)])
@@ -71,7 +70,7 @@ for(METHOD in 1:5){
   UTR5_genes <- unique(DM_ann_df$SYMBOL[grepl("5' UTR", DM_ann_df$annotation)])
   UTR3_genes <- unique(DM_ann_df$SYMBOL[grepl("3' UTR", DM_ann_df$annotation)])
   
-  #Obtaining only exon/intron/UTR intersecting genes
+  #Obtaining *region*-only intersecting genes
   prom_inter_genes <- intersect(prom_genes, DE_results$SYMBOL)
   exon_inter_genes <- intersect(exon_genes, DE_results$SYMBOL)
   intron_inter_genes <- intersect(intron_genes, DE_results$SYMBOL)
@@ -79,10 +78,9 @@ for(METHOD in 1:5){
   UTR5_inter_genes <- intersect(UTR5_genes, DE_results$SYMBOL)
   UTR3_inter_genes <- intersect(UTR3_genes, DE_results$SYMBOL)
   
-  ## Some of the cases have very low numbers: must be careful with the test interpretation. 
   
   ## Hypergeometric tests
-  #Are intersecting genes associated to methylation specific to introns/exons/3UTR/promoters?
+  #Are intersecting genes associated to methylation specific to region type?
   
   #Promoter
   N <- as.numeric(length(unique(DM_ann_df$SYMBOL)))             # all DM genes
@@ -136,13 +134,13 @@ for(METHOD in 1:5){
   perc_3UTR  <- safe_perc(length(UTR3_inter_genes),  length(UTR3_genes))
   
   
-  ##Multiple test correction: BH
-  pvals_raw <- c(prom = hyp_prom_trend, exon = hyp_ex, intron = hyp_int,
-                 interg = hyp_interg, UTR5 = hyp_5UTR, UTR3 = hyp_3UTR)
-  
+  ## Multiple test correction: BH
+  pvals_raw <- c(prom = hyp_prom_trend, exon = hyp_ex, intron = hyp_int, interg = hyp_interg, UTR5 = hyp_5UTR, UTR3 = hyp_3UTR)
   #BH
   pvals_adj <- p.adjust(pvals_raw, method = "BH")
   
+  
+  ## Preparing table
   Stats_region[[METHOD]] <- c(
     round(perc_prom, 1),    pvals_adj["prom"],
     round(perc_ex, 1),      pvals_adj["exon"],
@@ -160,7 +158,8 @@ for(METHOD in 1:5){
   
   
   
-  ## Graph: Region type (solo M1, M3, M4; M2 e M5 sono uguali a M1 -> skip SOLO il grafico) ##
+  ## Graph: Region type ##
+  
   if (METHOD %in% c(1, 3, 4)) {
     
     region_summary <- data.frame(
@@ -203,29 +202,32 @@ for(METHOD in 1:5){
   }
 }
 
-#Graph Output
+
+## Graph Output
 pdf(file.path(PATH, "Dataset_0", "4_Integration_results", "Region_analysis_ChIPseeker D0.pdf"), height = 10, width = 15)
 plot_grid(plotlist = graph_list, ncol = 2)
 dev.off()
 
-#Stats output
+## Stats output
 Stats_df <- as.data.frame(do.call(cbind, Stats_region))
 colnames(Stats_df) <- sprintf("M%d", seq_along(Stats_region))
 Stats_df$metric <- rownames(Stats_df)
 Stats_df <- Stats_df[ , c("metric", setdiff(names(Stats_df), "metric"))]  # Puts "metric" as first column
 
-#Output
+## Output
 write.xlsx(Stats_df, file.path(PATH, "Dataset_0", "4_Integration_results", "Stats_table_region.xlsx"), rowNames = FALSE)
 
 
-#Output for comparison
+
+## Output for comparison (control +)
+
 Final_output <- read.csv(file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_4.csv"), row.names = NULL)
 
-## ---- Percentuale per regione (per CpG, come il design_summary) ----
-# categorie fisse nell'ordine richiesto
+## Percentage by region (per CpG, like the design_summary)
+#Fixed categories in the correct order
 region_levels <- c("3UTR","5UTR","downstream","exon","intergenic","intron","promoter")
 
-# normalizza le annotazioni verbose di ChIPseeker in categorie coarse
+#Normalizing ChIPseeker's verbose annotations into coarse categories
 coarse_region <- function(x) {
   dplyr::case_when(
     grepl("^Promoter",          x) ~ "promoter",
@@ -239,18 +241,17 @@ coarse_region <- function(x) {
   )
 }
 
-# For each method: per-CpG annotation vector.
+#For each method: per-CpG annotation vector.
 region_perc <- sapply(DM_ann_list, function(df) {
   reg <- factor(coarse_region(df$annotation), levels = region_levels)
   round(prop.table(table(reg)), 3)
 })
 colnames(region_perc) <- c("M1","M2","M3","M4","M5")
 
-region_perc   # matrice: 7 righe (regioni) x 5 colonne (M1..M5)
 
+## Final output and export
 Final_output <- rbind(Final_output,
                       data.frame(metric = c("3UTR", "5UTR", "downstream", "exon", "intergenic", "intron", "promoter"),
                                  value = c(region_perc["3UTR", "M2"], region_perc["5UTR", "M2"], region_perc["downstream", "M2"], 
-                                           region_perc["exon", "M2"], region_perc["intergenic", "M2"], region_perc["intron", "M2"], region_perc["promoter", "M2"])
-                      ))
+                                           region_perc["exon", "M2"], region_perc["intergenic", "M2"], region_perc["intron", "M2"], region_perc["promoter", "M2"])))
 write.xlsx(Final_output, file.path(PATH, "Dataset_0", "Ground Truth", "Final_output_for_comparison.xlsx"))

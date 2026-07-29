@@ -25,9 +25,9 @@ general_df$coord_key <- paste(general_df$seqnames, general_df$start, sep="_")
 GR_data <- myDiff25p_GR
 
 #Ref for M1 and M5
-gtf_file <- file.path(path, "references", "gencode.v49.annotation.gtf.gz")
+gtf_file <- file.path(PATH, "references", "gencode.v49.annotation.gtf.gz")
  
-txdb <- maketxdbfromgff(
+txdb <- makeTxDbFromGFF(
   gtf_file,
   format = "gtf"
 )

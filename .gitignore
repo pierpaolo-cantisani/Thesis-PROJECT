@@ -6,6 +6,7 @@ ML_eQTM_model/
 .vscode/
 rnaseq/
 wgbs/
+THESIS/
 
 ## Outputs and heavy files (except graphs)
 #Data files

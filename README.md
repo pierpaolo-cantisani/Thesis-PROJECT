@@ -25,7 +25,6 @@ signal strength:
 | D1   | Pacis 2015          | TB-infected vs control    | Strong         | Well-defined biological effect |
 | D2   | Mendizabal          | NeuN vs Olig2 (positive)  | Very strong    | Cell-type contrast (validation)|
 | D3   | Fluzone vaccine     | Day 28 vs Day 0           | Sparse         | Applicability-domain limit     |
-|      | (GSE263782)         |                           |                |                                |
 
 **D0** provides ground truth for validation because both DM and DE signals are
 generated with known CpG-to-gene assignments.

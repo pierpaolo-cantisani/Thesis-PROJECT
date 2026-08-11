@@ -11,7 +11,7 @@ This project benchmarks five methods for associating differentially methylated
 CpG sites (DM) to differentially expressed genes (DE) across multi-omic
 datasets combining bisulfite sequencing (BS-Seq) and RNA-Seq. The benchmark
 evaluates how much different CpG-to-gene association strategies affect
-downstream biological conclusions — a question of practical relevance when
+downstream biological conclusions, a question of practical relevance when
 integrating epigenomic and transcriptomic layers.
 
 ## Datasets
@@ -49,13 +49,13 @@ generator):
 2. **BS-Seq differential methylation** (methylKit for D1/D2; limma-on-M-values
    for D3)
 3. **CpG-to-gene annotation** (methods M1–M5)
-4. **Integration** — three complementary pipelines:
+4. **Integration**  three complementary pipelines:
    - PIP0: gene-list intersection (Upset plot)
    - PIP1: per-CpG Spearman correlation (Delta and eQTM-style residuals)
    - PIP2: quadrant enrichment (concordance of ΔM sign and log2FC sign)
-5. **Additional statistics** — hypergeometric tests for direction consistency,
+5. **Additional statistics**  hypergeometric tests for direction consistency,
    magnitude correlation, multi-DM enrichment, sites-vs-log2FC correlation
-6. **Genomic region analysis** — re-annotation with ChIPseeker to compare
+6. **Genomic region analysis**  re-annotation with ChIPseeker to compare
    method outputs at the region level (promoter, exon, intron, UTR, intergenic)
 
 ## Requirements

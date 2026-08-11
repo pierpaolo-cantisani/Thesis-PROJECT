@@ -22,9 +22,9 @@ signal strength:
 | ID   | Source              | Contrast                  | Signal size    | Role in benchmark              |
 |------|---------------------|---------------------------|----------------|--------------------------------|
 | D0   | Synthetic           | Simulated case vs control | Controlled     | Positive control, ground truth |
-| D1   | Pacis 2015          | TB-infected vs control    | Strong         | Well-defined biological effect |
-| D2   | Mendizabal          | NeuN vs Olig2 (positive)  | Very strong    | Cell-type contrast (validation)|
-| D3   | Fluzone vaccine     | Day 28 vs Day 0           | Sparse         | Applicability-domain limit     |
+| D1   | GEO: GSE64183       | TB-infected vs control    | Strong         | Well-defined biological effect |
+| D2   | GEO: GSE108066      | NeuN vs Olig2 (positive)  | Very strong    | Cell-type contrast (validation)|
+| D3   | GEO: GSE263782      | Day 28 vs Day 0           | Sparse         | Applicability-domain limit     |
 
 **D0** provides ground truth for validation because both DM and DE signals are
 generated with known CpG-to-gene assignments.
@@ -62,18 +62,18 @@ generator):
 
 The pipeline is R-based (≥ 4.2). Key packages used across scripts:
 
-- `DESeq2`, `tximport`, `matrixStats` — RNA-Seq
-- `methylKit`, `limma`, `EpiDISH` — BS-Seq
-- `genomation`, `ChIPseeker`, `rGREAT`, `GenomicFeatures`, `GenomicRanges` — annotation
-- `TxDb.Hsapiens.UCSC.hg38.knownGene`, `org.Hs.eg.db` — gene models
-- `rtracklayer`, `karyoploteR` — coordinate handling and visualization
-- `dplyr`, `tidyr`, `UpSetR`, `cowplot`, `ggplot2`, `pheatmap` — data manipulation and plotting
-- `openxlsx`, `writexl`, `data.table` — I/O
+- `DESeq2`, `tximport`, `matrixStats` —> RNA-Seq
+- `methylKit`, `limma`, `EpiDISH` —> BS-Seq
+- `genomation`, `ChIPseeker`, `rGREAT`, `GenomicFeatures`, `GenomicRanges` —> annotation
+- `TxDb.Hsapiens.UCSC.hg38.knownGene`, `org.Hs.eg.db` —> gene models
+- `rtracklayer`, `karyoploteR` —> coordinate handling and visualization
+- `dplyr`, `tidyr`, `UpSetR`, `cowplot`, `ggplot2`, `pheatmap` —> data manipulation and plotting
+- `openxlsx`, `writexl`, `data.table` —> I/O
 
 Reference assembly is **GRCh38** for all datasets. D1 and D2 raw data are
 lifted from hg19 to hg38 via `rtracklayer::liftOver`; D3 is already in hg38.
 
 ## Methodological notes and known limitations
 
-Because this is a work in progress, some methodological choices are
-still evolving and will be corrected and changed before the write-up of the final thesis:
+Because this is a work in progress, some methodological choices are still 
+evolving and will be corrected and changed before the write-up of the final thesis.

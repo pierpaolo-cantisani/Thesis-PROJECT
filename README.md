@@ -1,6 +1,6 @@
 # CpG-to-gene association benchmark across multi-omic datasets
 
-**Work in Progress** — This repository is under active development as part of a
+**Work in Progress**: this repository is under active development as part of a
 postgraduate Master's thesis project. The pipeline, results, and documentation are not yet
 final. Interfaces, file formats, and parameters may change without notice until
 the first release.

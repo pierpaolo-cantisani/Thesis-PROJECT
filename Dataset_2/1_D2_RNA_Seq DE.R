@@ -246,7 +246,7 @@ DE_res <- merge(DE_res, gene_map,
 
 
 #Obtaining significant results
-sign_DE_res <- DE_res %>% filter(padj < 0.01 & abs(log2FoldChange) > 1)
+sign_DE_res <- DE_res %>% filter(padj < 0.05 & abs(log2FoldChange) > 1)
 
 ## Exporting results
 write.csv(sign_DE_res, file.path(PATH, "Dataset_2", "1_RNA-Seq", "DE_results.csv"), row.names = FALSE)
@@ -260,10 +260,10 @@ write.csv(RNAseq_universe, file = file.path(PATH, "Dataset_2", "1_RNA-Seq", "RNA
 
 ggplot(RNAseq_universe, aes(x = log2FoldChange, y = -log10(padj))) +
   geom_point(alpha = 0.5) +
-  geom_hline(yintercept = -log10(0.01), linetype = "dashed", color = "blue") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
   geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "blue") +
   geom_point(data = RNAseq_universe[!is.na(RNAseq_universe$padj) & 
-                                    RNAseq_universe$padj < 0.01 & 
+                                    RNAseq_universe$padj < 0.05 & 
                                     abs(RNAseq_universe$log2FoldChange) > 1, ], color = "red") +
   theme_minimal() +
   labs(title = "Volcano plot: DE analysis", x = "log2 Fold Change", y = "-log10(adj pvalue)")

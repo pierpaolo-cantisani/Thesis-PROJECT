@@ -4,6 +4,8 @@ library(tidyr)
 library(openxlsx)
 library(cowplot)
 
+### PIPELINE 2 ###
+
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"
 
 ### 0. Importing DE genes ###
@@ -140,46 +142,6 @@ for(METHOD in 1:5) {
   q <- as.numeric(length(intersect_down_genes))     # all downregulated intersected genes
   hyp_fin_down <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
   
-  
-  
-  ## 2.3: Association: UP/DOWN DE vs Hyper/Hypo DM
-  
-  #Obtaining hypo/hyper lists
-  hypo_DM <- DM_sites %>% filter(meth.diff < 0)
-  hyper_DM <- DM_sites %>% filter(meth.diff > 0)
-  hypo_int_DM <- hypo_DM %>% filter(SYMBOL %in% DE_results$SYMBOL)
-  hyper_int_DM <- hyper_DM %>% filter(SYMBOL %in% DE_results$SYMBOL)
-  #Not filtering for unique genes. So there will be duplicates: this analysis will be done for site, rather than gene
-  hypo_int_up_DM <- hypo_DM %>% filter(SYMBOL %in% DE_up$SYMBOL)
-  hyper_int_up_DM <- hyper_DM %>% filter(SYMBOL %in% DE_up$SYMBOL)
-  hypo_int_down_DM <- hypo_DM %>% filter(SYMBOL %in% DE_down$SYMBOL)
-  hyper_int_down_DM <- hyper_DM %>% filter(SYMBOL %in% DE_down$SYMBOL)
-  
-  ## Hypergeometric test: Are hypo/hyper DM sites associated with strong up/downregulation?
-  #hypo-up
-  N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
-  m <- as.numeric(length(hypo_int_up_DM$SYMBOL) + length(hyper_int_up_DM$SYMBOL))      # All up intersecting genes
-  k <- as.numeric(length(hypo_int_DM$SYMBOL))                                          # All hypo intersecting genes
-  q <- as.numeric(length(hypo_int_up_DM$SYMBOL))                                       # hypo-up intersecting genes
-  hyp_up_hypo <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
-  #hypo-down
-  N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
-  m <- as.numeric(length(hypo_int_down_DM$SYMBOL) + length(hyper_int_down_DM$SYMBOL))  # All down intersecting genes
-  k <- as.numeric(length(hypo_int_DM$SYMBOL))                                          # All hypo intersecting genes
-  q <- as.numeric(length(hypo_int_down_DM$SYMBOL))                                     # hypo-down intersecting genes
-  hyp_down_hypo <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
-  #hyper-up
-  N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
-  m <- as.numeric(length(hypo_int_up_DM$SYMBOL) + length(hyper_int_up_DM$SYMBOL))      # All up intersecting genes
-  k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hyper intersecting genes
-  q <- as.numeric(length(hyper_int_up_DM$SYMBOL))                                      # hyper-up intersecting genes
-  hyp_up_hyper <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
-  #hyper-down
-  N <- as.numeric(length(hypo_int_DM$SYMBOL) + length(hyper_int_DM$SYMBOL))            # All intersecting genes
-  m <- as.numeric(length(hypo_int_down_DM$SYMBOL) + length(hyper_int_down_DM$SYMBOL))  # All down intersecting genes
-  k <- as.numeric(length(hyper_int_DM$SYMBOL))                                         # All hyper intersecting genes
-  q <- as.numeric(length(hyper_int_down_DM$SYMBOL))                                    # hyper-down intersecting genes
-  hyp_down_hyper <- phyper(q-1, m, N-m, k, lower.tail = FALSE)
   
   
   ##! Duplicates were not cleaned: this is wanted, as different sites on the same gene may have different trends.
@@ -357,10 +319,6 @@ for(METHOD in 1:5) {
     hyp_down         = hyp_down,
     hyp_DM_down      = hyp_DM_down,
     hyp_fin_down     = hyp_fin_down,
-    hyp_up_hypo      = hyp_up_hypo,
-    hyp_down_hypo    = hyp_down_hypo,
-    hyp_up_hyper     = hyp_up_hyper,
-    hyp_down_hyper   = hyp_down_hyper,
     hyp_multi        = hyp_multi,
     all_cor_p        = all_cor$p.value,
     sites_abs_fc_p   = sites_abs_fc_cor$p.value,
@@ -376,8 +334,6 @@ for(METHOD in 1:5) {
     pvals_adj["hyp_intersect"], pvals_adj["hyp_DM_up"],
     pvals_adj["hyp_up"], pvals_adj["hyp_fin_up"],
     pvals_adj["hyp_DM_down"], pvals_adj["hyp_down"], pvals_adj["hyp_fin_down"],
-    pvals_adj["hyp_up_hypo"], pvals_adj["hyp_down_hypo"],
-    pvals_adj["hyp_up_hyper"], pvals_adj["hyp_down_hyper"],
     all_cor$estimate, pvals_adj["all_cor_p"],
     length(multi_DM_genes), pvals_adj["hyp_multi"],
     sites_abs_fc_cor$estimate, pvals_adj["sites_abs_fc_p"],
@@ -394,7 +350,6 @@ final_df <- as.data.frame(Data_list)
 row.names(final_df) <- c("Sign of inters (padj)", "All DM up (padj)", 
                          "DM ∩ DE DM up (padj)", "DM ∩ DE vs All DM up (padj)",
                          "All DM down (padj)", "DM ∩ DE DM down (padj)", "DM ∩ DE vs All DM down (padj)",
-                         "Hypo-up (padj)", "Hypo-down (padj)", "Hyper-up (padj)", "Hyper-down (padj)",
                          "meth Spear (rho)", "meth Spear (padj)", 
                          "Multi DM genes", "Multi DM ∩ DE (padj)",
                          "sites vs |log2FC| (rho)", "sites vs |log2FC| (padj)",

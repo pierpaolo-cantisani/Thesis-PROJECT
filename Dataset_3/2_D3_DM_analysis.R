@@ -84,7 +84,7 @@ res$deltaB <- deltaB
 
 
 ## Extracting significant results:
-sign_DM <- res[res$adj.P.Val < 0.05 & abs(res$deltaB) > 0.05, ]
+sign_DM <- res[res$adj.P.Val < 0.01 & abs(res$deltaB) > 0.25, ]
 sign_DM$seqnames <- sub("\\..*", "", rownames(sign_DM))
 sign_DM$start <- as.integer(sub(".*\\.", "", rownames(sign_DM)))
 
@@ -92,9 +92,9 @@ res$meth.diff <- deltaB*100
 ## Graph: volcano plot
 ggplot(res, aes(x = meth.diff, y = -log10(adj.P.Val))) +
   geom_point(alpha = 0.5) +
-  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color ="blue") +
-  geom_vline(xintercept = c(-5, +5), linetype = "dashed", color ="blue") +
-  geom_point(data = res[res$adj.P.Val < 0.05 & abs(res$meth.diff) > 5, ], col = "red") +
+  geom_hline(yintercept = -log10(0.01), linetype = "dashed", color ="blue") +
+  geom_vline(xintercept = c(-25, +25), linetype = "dashed", color ="blue") +
+  geom_point(data = res[res$adj.P.Val < 0.01 & abs(res$meth.diff) > 25, ], col = "red") +
   theme_minimal() +
   labs(title = "Volcano plot: DM analysis", x= "Delta beta value", y = "-log10(adj pvalue)")
 

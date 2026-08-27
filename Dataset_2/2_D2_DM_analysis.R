@@ -211,7 +211,7 @@ myDiff <- calculateDiffMeth(meth,
 
 ### !!! From this point on, moved to another work station. Files were inserted in path: file.path(PATH, "Dataset_2", "2_BS-Seq") ###
 ## Reading:
-#myDiff <- readMethylDB(file.path(PATH, "Dataset_2", "2_BS-Seq", "methylDiff_united_diff.txt.bgz"))
+myDiff <- readMethylDB(file.path(PATH, "Dataset_2", "2_BS-Seq", "methylDiff_united_diff.txt.bgz"))
 
 
 ## Selecting differentially methylated bases:

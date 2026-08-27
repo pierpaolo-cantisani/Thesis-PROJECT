@@ -7,6 +7,8 @@ library(ggplot2)
 library(cowplot)
 library(openxlsx)
 
+### PIPELINE 2 ###
+
 ### Methods 1, 2 and 5 are identical for this analysis. Methods 3 and 4 are subsets of 1/2/5
 
 PATH <- "C:/Users/pierp/Desktop/Thesis PROJECT"

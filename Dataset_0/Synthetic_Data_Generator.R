@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # ============================================================================
-# Round-trip synthetic data generator (OPTION 1, reference method = M2/ChIPseeker)
+# Round-trip synthetic data generator (reference method = M2/ChIPseeker)
 # RNA-seq (.sf, keyed by SYMBOL) + WGBS (chr pos M coverage, single-strand)
 #
 # M2 (ChIPseeker annotatePeak, GENCODE TxDb + org.Hs.eg.db) is run INSIDE this

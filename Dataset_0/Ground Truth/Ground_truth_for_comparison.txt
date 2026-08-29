@@ -1,18 +1,33 @@
 M2 genes: 5900
-DE genes: 2942
+DE genes: 3235
 CpGs: 15000
 DM CpGs: 7478
 
 --- REALISED marginals (round-trip target; emergent under M2) ---
 DM (any)   : 0.499
-both DE&DM : 0.131
-dm_only    : 0.367
+both DE&DM : 0.161
+dm_only    : 0.338
 --- quadrant split of the BOTH set (realised) ---
 
    Q1    Q2    Q3    Q4 
-0.108 0.402 0.095 0.396 
+0.096 0.409 0.099 0.396 
 
 --- M2 region_type of DM CpGs (coarse) ---
 
       3UTR       5UTR downstream       exon intergenic     intron   promoter 
      0.016      0.007      0.004      0.079      0.175      0.439      0.281 
+
+--- eQTM-like couplings injected (full list: eqtm_pairs.tsv / delta_eqtm_pairs.tsv) ---
+condition-pooled eQTM (pipeline 2.b, 'Spearman eQTM'): 100 CpG-gene pairs expected, rho = 0.80
+paired-delta eQTM   (pipeline 2.a, 'Spearman Delta') : 60 CpG-gene pairs expected, rho = 0.97
+  fully INDEPENDENT of the 100 condition-pooled eQTM above: 0 shared CpGs and 0 shared
+
+--- DM-site multiplicity ('dose') effect on the host gene ---
+log-odds of being DE, per extra DM site on the gene : +0.30 (0 = no effect; baseline p_gene_DE = 0.50)
+|log2FC| added per DM site beyond the first, if DE  : +0.50 (0 = no effect; baseline lfc_mag = 2.00)
+  => genes with more DM sites are more likely to be DE AND show a larger |log2FC|
+     (magnitude only). This does NOT set the sign of log2FC
+
+--- directional (up vs down) balance: NO up/down preference by design ---
+DE genes up   : 1646 (0.509 of DE genes)
+DE genes down : 1589 (0.491 of DE genes)

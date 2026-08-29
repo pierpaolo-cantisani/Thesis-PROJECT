@@ -633,6 +633,24 @@ noneqtm_keys <- setdiff(both_keys, eqtm_keys)
 fallout <- mean(noneqtm_keys %in% m2q$coord_key[m2q$padj < 0.05])             #% of the DE/DM that comes out statistically significant ERRONEOUSLY
 fdr <- length(setdiff(m2q$coord_key[m2q$padj < 0.05], eqtm_keys))/(length(setdiff(m2q$coord_key[m2q$padj < 0.05], eqtm_keys)) + length(eqtm_keys))
 
+#Stats for Delta Spearman: 60 pairs
+delta_eqtm <- read.delim(file.path(PATH, "Dataset_0", "Ground Truth", "delta_eqtm_pairs.tsv"))
+delta_keys <- delta_eqtm$coord_key
+m2d <- Spear_res_list[[2]]    # M2 (ChIPseeker): risultati del test Delta (2.a)
+recall_delta <- mean(delta_keys %in% m2d$coord_key[m2d$padj < 0.05 & m2d$rho < 0])    #% delle 60 coppie delta significative
+
+#Fallout on both-non-delta:
+both_keys_delta <- M2_df$coord_key[M2_df$SYMBOL %in% sign_DE$SYMBOL]
+nondelta_keys   <- setdiff(both_keys_delta, delta_keys)
+fallout_delta <- mean(nondelta_keys %in% m2d$coord_key[m2d$padj < 0.05]) #% of the DE/DM that comes out statistically significant ERRONEOUSLY
+
+fdr_delta <- length(setdiff(m2d$coord_key[m2d$padj < 0.05], delta_keys)) /
+  (length(setdiff(m2d$coord_key[m2d$padj < 0.05], delta_keys)) + length(delta_keys))
+
+#Overlap Delta ∩ eQTM (padj<0.05, rho<0)
+sig_delta_keys <- m2d$coord_key[m2d$padj < 0.05 & m2d$rho < 0]
+sig_eqtm_keys  <- m2q$coord_key[m2q$padj < 0.05 & m2q$rho < 0]
+overlap_delta_eqtm <- length(intersect(sig_delta_keys, sig_eqtm_keys))
 
 #Obtaining stats (M2: CHIPseeker is the default for this + ctrl dataset)
 all_cpgs <- Output_bench$value[Output_bench$metric == "CpG sites"]
@@ -640,13 +658,15 @@ DM_n <- nrow(meth25p)
 DE_n <- nrow(sign_DE)
 DE_DM_n <- sum(M2_df$SYMBOL %in% sign_DE$SYMBOL)
 dm_only_cpg <- sum(!(M2_df$SYMBOL %in% sign_DE$SYMBOL))
-
-Output_final <- rbind(Output_bench, 
+Output_final <- rbind(Output_bench,
                       data.frame(metric = c("DM (any)", "both DE&DM", "dm_only", "q1", "q2", "q3", "q4",
-                                            "recall eQTM (ref=1)", "fallout eQTM (ref<0.05)", "fdr eQTM (no ref)"), 
-                                 value = c(DM_n/all_cpgs, DE_DM_n/all_cpgs, dm_only_cpg/all_cpgs, quadrant_table["q1", "M2"], 
+                                            "recall eQTM (ref=1)", "fallout eQTM (ref<0.05)", "fdr eQTM (no ref)",
+                                            "recall Delta (ref=1)", "fallout Delta (ref<0.05)", "fdr Delta (no ref)",
+                                            "overlap Delta∩eQTM (coord_key count)"),
+                                 value = c(DM_n/all_cpgs, DE_DM_n/all_cpgs, dm_only_cpg/all_cpgs, quadrant_table["q1", "M2"],
                                            quadrant_table["q2", "M2"], quadrant_table["q3", "M2"], quadrant_table["q4", "M2"],
-                                           recall, fallout, fdr)))
-
+                                           recall, fallout, fdr,
+                                           recall_delta, fallout_delta, fdr_delta,
+                                           overlap_delta_eqtm)))
 #Output excel:
 write.csv(Output_final, file.path(PATH, "Dataset_0", "Ground Truth", "Output_data_tmp_4.csv"), row.names = FALSE)

@@ -25,7 +25,7 @@ M4_df <- read.csv(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met4.csv
 M5_df <- read.csv(file.path(PATH, "Dataset_3", "3_Benchmark", "DM_sites_Met5.csv"))
 
 
-##### --- PIPELINE 0: Simple Intersection --- #####
+##### --- PIPELINE 1: Simple Intersection --- #####
 
 #Inserting BS-Seq DM sites into a list
 M_list <- list()
@@ -111,7 +111,7 @@ write_xlsx(Upset_genes_df, file.path(PATH, "Dataset_3", "4_Integration_results",
 
 
 #####
-##### --- PIPELINE 1: Vector Comparison --- #####
+##### --- PIPELINE 2: Vector Comparison --- #####
 
 ### FUNCTIONS ###
 
@@ -474,7 +474,7 @@ Pip1_table <- Pip1_table[-1, ]
 
 
 #####
-##### --- PIPELINE 2: Scalar comparison --- #####
+##### --- PIPELINE 3: Scalar comparison --- #####
 
 ### FUNCTIONS ###
 

@@ -4,7 +4,7 @@ library(tidyr)
 library(openxlsx)
 library(cowplot)
 
-### PIPELINE 2 ###
+### PIPELINE 3 ###
 
 ### FUNCTIONS ###
 

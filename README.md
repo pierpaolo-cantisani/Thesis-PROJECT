@@ -1,10 +1,5 @@
 # CpG-to-gene association benchmark across multi-omic datasets
 
-**Work in Progress**: this repository is under active development as part of a
-postgraduate Master's thesis project. The pipeline, results, and documentation are not yet
-final. Interfaces, file formats, and parameters may change without notice until
-the first release.
-
 ## Overview
 
 This project benchmarks five methods for associating differentially methylated
@@ -50,13 +45,10 @@ generator):
    for D3)
 3. **CpG-to-gene annotation** (methods M1–M5)
 4. **Integration**  three complementary pipelines:
-   - PIP0: gene-list intersection (Upset plot)
-   - PIP1: per-CpG Spearman correlation (Delta and eQTM-style residuals)
-   - PIP2: quadrant enrichment (concordance of ΔM sign and log2FC sign)
-5. **Additional statistics**  hypergeometric tests for direction consistency,
-   magnitude correlation, multi-DM enrichment, sites-vs-log2FC correlation
-6. **Genomic region analysis**  re-annotation with ChIPseeker to compare
-   method outputs at the region level (promoter, exon, intron, UTR, intergenic)
+   - PIP1: gene-list intersection (Upset plot)
+   - PIP2: per-CpG Spearman correlation (Delta and eQTM-style residuals)
+   - PIP3: quadrant enrichment (concordance of ΔM sign and log2FC sign), hypergeometric tests for direction consistency,
+   magnitude correlation, multi-DM enrichment, sites-vs-log2FC correlation, Genomic region analysis (promoter, exon, intron, UTR, intergenic).
 
 ## Requirements
 

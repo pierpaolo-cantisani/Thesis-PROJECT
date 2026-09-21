@@ -1,22 +1,11 @@
-#!/usr/bin/env Rscript
-# ============================================================================
 # Round-trip synthetic data generator (reference method = M2/ChIPseeker)
 # RNA-seq (.sf, keyed by SYMBOL) + WGBS (chr pos M coverage, single-strand)
 #
 # M2 (ChIPseeker annotatePeak, GENCODE TxDb + org.Hs.eg.db) is run INSIDE this
 # script on the generated CpG coordinates, and the DE signal is anchored to the
 # gene M2 associates each CpG to. Therefore M2's own output IS the ground truth:
-# running M2 in the pipeline returns 100% of the prepared associations, and any
+# running M2 in the pipeline should return 100% of the prepared associations, and any
 # other method's associations are deviations measured against M2.
-#
-# Interface note: there are NO planted category fractions. In option 1 the
-# association is DISCOVERED by M2 (which assigns every site to a nearest gene,
-# far ones labelled "Distal Intergenic"), so you set:
-#   p_DM      : fraction of CpGs that are DM
-#   p_gene_DE : fraction of M2-associated genes that are DE
-# The both/dm_only/de_only/neither split and the region-type distribution are
-# EMERGENT, measured from ground truth and written to design_summary.txt --
-# that measured value is the round-trip target.
 #
 # ChIPseeker region hierarchy: Promoter > 5'UTR > 3'UTR > Exon > Intron >
 #   Downstream > Distal Intergenic. Placement below mirrors these definitions
@@ -24,7 +13,7 @@
 #   authoritative region_type is whatever M2 assigns.
 #
 # Sign convention: meth.diff = case - ctrl (>0 hyper); log2FC = log2(case/ctrl)
-#   Q1(+,+) up&hyper   Q2(+,-) up&hypo   Q3(-,-) down&hypo   Q4(-,+) down&hyper
+#   Q1(+,+) up&hyper   Q2(-,+) up&hypo   Q3(-,-) down&hypo   Q4(+,-) down&hyper
 #
 # Outputs (directories must already exist):
 #   outdir_rna/rnaseq/<sample>.sf   quant.sf (Name = SYMBOL)
@@ -38,7 +27,7 @@ library(ChIPseeker)      # annotatePeak
 library(org.Hs.eg.db)    # annoDb for SYMBOL
 ## =============================== PARAMETERS ================================
 set.seed(1)
-PATH        <- "C:/Users/pierp/Desktop/Thesis PROJECT"   # <-- project root
+PATH        <- "C:/Users/pierp/Desktop/Thesis PROJECT"   # project root
 gtf_path    <- file.path(PATH, "references", "gencode.v49.annotation.gtf.gz")
 outdir_rna  <- file.path(PATH, "Dataset_0", "1_RNA-Seq")
 outdir_wgbs <- file.path(PATH, "Dataset_0", "2_BS-Seq")
@@ -75,31 +64,13 @@ bb_conc        <- 30
 frac_distal    <- 0.10           # fraction dropped far from any gene (-> Distal Intergenic)
 tss_dist_range <- c(100, 1e5)    # |offset| from TSS in bp, sampled log-uniformly
 p_downstream   <- 0.80           # P(offset is downstream of TSS, i.e. into the gene body)
-# --- delta-level (paired case-ctrl) coupling, INDIPENDENTE dall'eQTM ---------
-# Il canale Delta (2.a) e l'eQTM (2.b) leggono gli STESSI valori grezzi di
-# metilazione/espressione simulati. Un CpG (o un gene) usato da ENTRAMBI i
-# meccanismi crea interferenza: 2.a è statisticamente molto più esigente di 2.b
-# (~2400 test con solo ~60 veri positivi, contro il segnale "pulito", non
-# differenziato, della 2.b su 100 campioni), quindi il canale Delta richiede
-# un'iniezione molto più forte -- e quel rumore extra, se applicato a un CpG/gene
-# GIA' usato dall'eQTM, degrada anche il segnale eQTM (osservato empiricamente:
-# con 40 CpG condivisi, l'eQTM è crollato da 0.99 a 0.57). Per eliminare questa
-# interferenza, le coppie Delta sono scelte SENZA alcuna sovrapposizione di CpG
-# NE' di gene host con le 100 coppie eQTM (v. sezione 5c) -- quindi 0 in comune.
-rho_delta_eqtm <- 0.97     # forza del canale Delta: quasi tutta la varianza spiegata da Z (poco rumore idiosincratico)
-# v4 (dopo l'isolamento 0-in-comune, eQTM tornato a 0.97 ma Delta osservato a 0.35):
-# delta_meth_sd=1.0 era troppo forte per lo spazio PROBABILITA' -- a rho=0.97 il termine
-# e' quasi deterministico (w_idio piccolo), quindi d_meth ~ N(0, delta_meth_sd) di fatto.
-# Con baseline beta_ctrl=0.5 e clamp [0.01,0.99], una SD di 1.0 satura il clamp per una
-# frazione enorme dei 50 soggetti per coppia (stimato numericamente: ~35% dei ctrl e
-# ~52% dei case), appiattendo molti valori e distruggendo l'ordine dei ranghi di cui
-# Spearman ha bisogno -- stesso tipo di guasto di v1, solo parziale invece che totale.
-# Abbassato a 0.5: la saturazione evitabile sui ctrl scende a ~10% (quella residua sui
-# case, ~35-39%, e' un pavimento preesistente dovuto a deltaM_mag=0.40 applicato a TUTTI
-# i CpG "both", indipendente dal canale Delta). Il segnale deterministico via Z_delta resta
-# comunque forte (coeff. ~0.49 invece di ~0.98). Va ancora validato empiricamente in R.
-delta_meth_sd  <- 0.5      # SD (spazio PROBABILITA', non logit) del termine metilazione del canale Delta
-n_delta_pairs  <- 60       # coppie CpG-gene per il canale Delta, tutte indipendenti dall'eQTM (0 in comune)
+
+#Delta and eQTM effect insertion
+# --- delta-level (paired case-ctrl) coupling, INDEPENDENT from eQTM ---------
+rho_delta_eqtm <- 0.97
+delta_meth_sd  <- 0.5
+n_delta_pairs  <- 60
+
 # --- DM-site multiplicity ("dose") effect on the host gene ------------------
 # Genes hosting more DM CpGs (regardless of category, counted from cpg$is_DM)
 # get: (1) higher odds of being DE, (2) a larger |log2FC| once DE. Direction
@@ -228,34 +199,35 @@ cpg$category <- with(cpg,
 gene_de$length  <- sample(tx_length_range[1]:tx_length_range[2], nrow(gene_de), TRUE)
 gene_de$mu_ctrl <- exp(rnorm(nrow(gene_de), base_mean_log, 1))
 gene_de$mu_case <- gene_de$mu_ctrl * 2^gene_de$log2FC
-## ------------------------- 5b. eQTM injection setup (livelli, 100 coppie) --
-stopifnot("category" %in% names(cpg), "m2_symbol" %in% names(cpg))   # dipendenze
-rho_eqtm <- 0.8         # forza accoppiamento; 0 = nessuno (torna al comportamento attuale)
+## ------------------------- 5b. eQTM injection setup (levels, 100 pairs) ----
+stopifnot("category" %in% names(cpg), "m2_symbol" %in% names(cpg))   # dependencies
+rho_eqtm <- 0.8         # coupling strength; 0 = none (reverts to current behaviour)
 n_eqtm   <- 100
 both_idx <- which(cpg$category == "both")
 stopifnot(length(both_idx) >= n_eqtm)
-eqtm_cpg <- sort(sample(both_idx, n_eqtm))          # 100 CpG target
+eqtm_cpg <- sort(sample(both_idx, n_eqtm))          # 100 target CpGs
 cpg$is_eqtm <- FALSE
 cpg$is_eqtm[eqtm_cpg] <- TRUE
-eqtm_gene_sym <- unique(cpg$m2_symbol[eqtm_cpg])    # geni-host target (per l'espressione)
-Z <- rnorm(n_pairs)                                 # latente per-soggetto, estratto UNA volta
+eqtm_gene_sym <- unique(cpg$m2_symbol[eqtm_cpg])    # target host genes (for expression)
+Z <- rnorm(n_pairs)                                 # per-subject latent variable, drawn ONCE
 k_expr <-  sqrt(rho_eqtm) * subj_sd_rna
-k_meth <- -sqrt(rho_eqtm) * subj_sd_meth            # segno - : più metilato -> meno espresso
-w_idio <- sqrt(1 - rho_eqtm)                        # peso della parte idiosincratica
-## ------------------------- 5c. delta-level coupling, INDIPENDENTE dall'eQTM
-## Il blocco 5b applica lo stesso termine soggetto-specifico a ctrl e case,
-## quindi si cancella nel delta case-ctrl (pipeline 2.a). Qui aggiungiamo un
-## SECONDO termine, con segno OPPOSTO tra ctrl (-1/2) e case (+1/2), che quindi
-## sopravvive per intero nel delta. Media zero su ctrl/case -> non altera le
-## medie di popolazione (log2FC, deltaM) né le proporzioni in design_summary.
-## Le n_delta_pairs coppie sono scelte da "both" ESCLUDENDO sia i 100 CpG
-## eQTM sia i geni host dei 100 CpG eQTM (eqtm_gene_sym) -- quindi 0 CpG e 0
-## geni in comune con l'eQTM: nessuna interferenza possibile tra i due canali.
+k_meth <- -sqrt(rho_eqtm) * subj_sd_meth            # sign - : more methylated -> less expressed
+w_idio <- sqrt(1 - rho_eqtm)                        # weight of the idiosyncratic part
+## ------------------------- 5c. delta-level coupling, INDEPENDENT of the eQTM
+## Block 5b applies the same subject-specific term to ctrl and case, so it
+## cancels out in the case-ctrl delta (pipeline 2.a). Here we add a SECOND
+## term, with OPPOSITE sign between ctrl (-1/2) and case (+1/2), which
+## therefore survives intact in the delta. Zero mean over ctrl/case -> does
+## not alter population means (log2FC, deltaM) or the proportions in
+## design_summary. The n_delta_pairs pairs are chosen from "both", EXCLUDING
+## both the 100 eQTM CpGs and the host genes of the 100 eQTM CpGs
+## (eqtm_gene_sym) -- so 0 CpGs and 0 genes in common with the eQTM: no
+## interference between the two channels is possible.
 candidate_delta <- setdiff(both_idx, eqtm_cpg)
 candidate_delta <- candidate_delta[!(cpg$m2_symbol[candidate_delta] %in% eqtm_gene_sym)]
 stopifnot(length(candidate_delta) >= n_delta_pairs)
 pick_distinct_genes <- function(idx_pool, k) {
-  # campiona k indici da idx_pool assicurando geni host tutti diversi tra loro
+  # sample k indices from idx_pool ensuring all host genes are distinct from each other
   pool <- idx_pool[sample(length(idx_pool))]
   picked <- integer(0); used_genes <- character(0)
   for (i in pool) {
@@ -263,21 +235,21 @@ pick_distinct_genes <- function(idx_pool, k) {
     if (!(g %in% used_genes)) { picked <- c(picked, i); used_genes <- c(used_genes, g) }
     if (length(picked) == k) break
   }
-  if (length(picked) < k) stop("delta: candidati con gene host distinto insufficienti")
+  if (length(picked) < k) stop("delta: not enough candidates with a distinct host gene")
   sort(picked)
 }
-delta_eqtm_cpg   <- pick_distinct_genes(candidate_delta, n_delta_pairs)   # n_delta_pairs CpG totali
+delta_eqtm_cpg   <- pick_distinct_genes(candidate_delta, n_delta_pairs)   # n_delta_pairs total CpGs
 delta_host_genes <- unique(cpg$m2_symbol[delta_eqtm_cpg])
 cpg$is_delta_eqtm <- FALSE
 cpg$is_delta_eqtm[delta_eqtm_cpg] <- TRUE
 gene_de$is_delta_gene <- gene_de$SYMBOL %in% delta_host_genes
 
-Z_delta      <- rnorm(n_pairs)                          # latente del canale Delta, indipendente da Z (eQTM)
+Z_delta      <- rnorm(n_pairs)                          # Delta channel latent variable, independent of Z (eQTM)
 k_expr_delta <-  sqrt(rho_delta_eqtm) * subj_sd_rna
-k_meth_delta <- -sqrt(rho_delta_eqtm) * delta_meth_sd   # delta_meth_sd, NON subj_sd_meth: scala diversa (v. sopra)
+k_meth_delta <- -sqrt(rho_delta_eqtm) * delta_meth_sd   # delta_meth_sd, NOT subj_sd_meth: different scale (see above)
 w_idio_delta <- sqrt(1 - rho_delta_eqtm)
-is_delta_g <- gene_de$is_delta_gene   # geni host del canale Delta (per la sezione 6, RNA)
-is_delta_c <- cpg$is_delta_eqtm       # CpG del canale Delta (per la sezione 7, WGBS)
+is_delta_g <- gene_de$is_delta_gene   # Delta channel host genes (for section 6, RNA)
+is_delta_c <- cpg$is_delta_eqtm       # Delta channel CpGs (for section 7, WGBS)
 ## ------------------------- 6. simulate + write RNA (.sf, keyed by SYMBOL) --
 write_sf <- function(counts, len, ids, path) {
   eff <- pmax(len - 200, 1); rate <- counts / eff
@@ -286,16 +258,16 @@ write_sf <- function(counts, len, ids, path) {
                          TPM = round(tpm, 4), NumReads = round(counts, 3)),
               path, sep = "\t", quote = FALSE, row.names = FALSE)
 }
-hit_rna <- gene_de$SYMBOL %in% eqtm_gene_sym                       ## <-- eQTM: geni target (una volta)
+hit_rna <- gene_de$SYMBOL %in% eqtm_gene_sym                       ## <-- eQTM: target genes (once)
 for (p in seq_len(n_pairs)) {
   re <- rnorm(nrow(gene_de), 0, subj_sd_rna)                       # shared subject baseline (paired)
-  re[hit_rna] <- w_idio * rnorm(sum(hit_rna), 0, subj_sd_rna) +    ## <-- eQTM: parte condivisa Z[p]
+  re[hit_rna] <- w_idio * rnorm(sum(hit_rna), 0, subj_sd_rna) +    ## <-- eQTM: shared part Z[p]
     k_expr * Z[p]                                     ## <-- eQTM
   
-  d_expr <- rep(0, nrow(gene_de))                                  ## <-- Delta: termine ASIMMETRICO
+  d_expr <- rep(0, nrow(gene_de))                                  ## <-- Delta: ASYMMETRIC term
   if (any(is_delta_g)) d_expr[is_delta_g] <- w_idio_delta * rnorm(sum(is_delta_g), 0, subj_sd_rna) +
-    k_expr_delta * Z_delta[p]                                      ## <-- 60 geni Delta: latente Z_delta, indipendente da Z (eQTM)
-  re_ctrl <- re - 0.5 * d_expr                                     # split simmetrico: sopravvive nel delta
+    k_expr_delta * Z_delta[p]                                      ## <-- 60 Delta genes: Z_delta latent, independent of Z (eQTM)
+  re_ctrl <- re - 0.5 * d_expr                                     # symmetric split: survives in the delta
   re_case <- re + 0.5 * d_expr
   
   write_sf(rnbinom(nrow(gene_de), mu = gene_de$mu_ctrl * exp(re_ctrl), size = 1 / nb_dispersion),
@@ -319,26 +291,26 @@ write_wgbs <- function(beta, cond, p) {
 }
 for (p in seq_len(n_pairs)) {
   re <- rnorm(n, 0, subj_sd_meth)
-  re[cpg$is_eqtm] <- w_idio * rnorm(sum(cpg$is_eqtm), 0, subj_sd_meth) + ## <-- eQTM: parte condivisa Z[p]
-    k_meth * Z[p]                                       ## <-- eQTM (segno - per anti-corr)
+  re[cpg$is_eqtm] <- w_idio * rnorm(sum(cpg$is_eqtm), 0, subj_sd_meth) + ## <-- eQTM: shared part Z[p]
+    k_meth * Z[p]                                       ## <-- eQTM (- sign for anti-correlation)
   
-  ## v3 (ricalibrata numericamente, v. commento sopra rho_delta_eqtm/delta_meth_sd):
-  ## d_meth torna in SPAZIO PROBABILITA' (come v1) -- lo spazio logit (v2) evitava la
-  ## saturazione ma smorzava troppo il segnale tramite la derivata della sigmoide, che
-  ## a n=50 e su una famiglia di ~2400 test con solo 60 veri positivi non sopravviveva a
-  ## BH (recall osservato 0.03). La differenza rispetto a v1 e' che ora d_meth usa
-  ## delta_meth_sd (1.0, dedicato, NON subj_sd_meth) con rho_delta_eqtm=0.97: piu' forte
-  ## e piu' deterministico, per compensare la doppia rumorosita' di una differenza a 50
-  ## coppie contro il segnale "pulito" a 100 campioni dell'eQTM 2.b.
-  d_meth <- rep(0, n)                                                   ## <-- Delta: termine ASIMMETRICO
+  ## v3 (numerically recalibrated, see comment above rho_delta_eqtm/delta_meth_sd):
+  ## d_meth goes back to PROBABILITY SPACE (like v1) -- logit space (v2) avoided
+  ## saturation but over-damped the signal via the sigmoid derivative, which at
+  ## n=50 and on a family of ~2400 tests with only 60 true positives did not
+  ## survive BH (observed recall 0.03). The difference from v1 is that d_meth
+  ## now uses delta_meth_sd (dedicated, NOT subj_sd_meth) with rho_delta_eqtm=0.97:
+  ## stronger and more deterministic, to compensate for the double noisiness of
+  ## a 50-pair difference versus the "clean" 100-sample signal of the eQTM 2.b.
+  d_meth <- rep(0, n)                                                   ## <-- Delta: ASYMMETRIC term
   if (any(is_delta_c)) d_meth[is_delta_c] <- w_idio_delta * rnorm(sum(is_delta_c), 0, delta_meth_sd) +
-    k_meth_delta * Z_delta[p]                                           ## <-- 60 CpG Delta: latente Z_delta, indipendente da Z (eQTM)
+    k_meth_delta * Z_delta[p]                                           ## <-- 60 Delta CpGs: Z_delta latent, independent of Z (eQTM)
   
-  bc <- clampb(invlogit(logit(clampb(cpg$beta_ctrl)) + re) - 0.5 * d_meth)   # ctrl: -1/2 del termine
+  bc <- clampb(invlogit(logit(clampb(cpg$beta_ctrl)) + re) - 0.5 * d_meth)   # ctrl: -1/2 of the term
   write_wgbs(bc, "ctrl", p)
-  write_wgbs(clampb(bc + cpg$deltaM + d_meth), "case", p)                   # case: bc + deltaM + termine
-  # delta (case-ctrl, pre-clamp) = deltaM + d_meth -> d_meth sopravvive intero nel delta,
-  # mentre la media (ctrl+case)/2 resta invariata rispetto allo script originale.
+  write_wgbs(clampb(bc + cpg$deltaM + d_meth), "case", p)                   # case: bc + deltaM + term
+  # delta (case-ctrl, pre-clamp) = deltaM + d_meth -> d_meth survives intact in the delta,
+  # while the (ctrl+case)/2 mean remains unchanged relative to the original script.
 }
 ## ------------------------- 8. ground truth + summary -----------------------
 write.table(cpg, file.path(outdir, "ground_truth.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
@@ -394,14 +366,14 @@ sm <- c(
 )
 writeLines(sm, file.path(outdir, "Ground_truth_for_comparison.txt"))
 cat(paste(sm, collapse = "\n"), "\n")
-## <-- eQTM: elenco esplicito delle 100 coppie target CpG-gene
+## <-- eQTM: explicit list of the 100 target CpG-gene pairs
 eqtm_pairs <- data.frame(
   coord_key = paste(cpg$chr[eqtm_cpg], cpg$pos[eqtm_cpg], sep = "_"),
   cpg_id    = cpg$cpg_id[eqtm_cpg],
   SYMBOL    = cpg$m2_symbol[eqtm_cpg]
 )
 write.table(eqtm_pairs, file.path(outdir, "eqtm_pairs.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
-## <-- eQTM-delta: elenco esplicito delle 60 coppie target CpG-gene (0 in comune con l'eQTM)
+## <-- eQTM-delta: explicit list of the 60 target CpG-gene pairs (0 shared with the eQTM)
 delta_eqtm_pairs <- data.frame(
   coord_key = paste(cpg$chr[delta_eqtm_cpg], cpg$pos[delta_eqtm_cpg], sep = "_"),
   cpg_id    = cpg$cpg_id[delta_eqtm_cpg],

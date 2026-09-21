@@ -58,9 +58,7 @@ bb_conc        <- 30
 # --- CpG placement: BY DISTANCE FROM TSS (mimics the real process) ----------
 # No region type is chosen. Each non-distal CpG is dropped at TSS +/- an offset
 # drawn log-uniformly from tss_dist_range (strand-aware); M2 then labels whatever
-# region it happened to fall in -- exactly as with real CpGs. Tune the three
-# knobs until design_summary's promoter fraction matches your data (~20-30%):
-# smaller tss_dist_range / lower p_downstream => more promoters.
+# region it happened to fall in -- exactly as with real CpGs.
 frac_distal    <- 0.10           # fraction dropped far from any gene (-> Distal Intergenic)
 tss_dist_range <- c(100, 1e5)    # |offset| from TSS in bp, sampled log-uniformly
 p_downstream   <- 0.80           # P(offset is downstream of TSS, i.e. into the gene body)
@@ -76,16 +74,7 @@ n_delta_pairs  <- 60
 # get: (1) higher odds of being DE, (2) a larger |log2FC| once DE. Direction
 # (dir, up vs down) is still drawn at p_up=0.5 AFTER this, so the up/down
 # balance from part 1 is untouched -- only DE-probability and effect magnitude
-# scale with site count. This is what pipeline-2 sections 4 and 5 test for.
-# CAUTION: dose_logor_beta raises P(DE) for EVERY gene with >=1 DM site, not just
-# multi-site genes -- with p_DM=0.5 over 15000 CpGs, a large fraction of all genes
-# have >=1 DM site, so a high value inflates the overall DE-gene count substantially.
-# That larger DE universe feeds directly into the analysis script's per-method
-# Spearman families (pipeline 1, sections 2.a/2.b): more tests in the same BH family
-# generally means a LOWER effective power for every true signal in that family,
-# including the pre-existing eQTM/Delta recall. If recall drops after raising this,
-# lower it first before touching anything else -- 0.8 was too aggressive and measurably
-# hurt eQTM/Delta recall; 0.3 below is a more conservative starting point.
+# scale with site count.
 dose_logor_beta <- 0.3     # log-odds of being DE added per DM site on the gene (0 = no effect, current behaviour)
 dose_fc_beta    <- 0.5     # |log2FC| added per DM site beyond the first, for DE genes (0 = no effect)
 ## ===========================================================================
@@ -159,8 +148,6 @@ u_sym <- unique(cpg$m2_symbol[!is.na(cpg$m2_symbol)])
 p_up  <- as.numeric(quadrant_props["Q1"] + quadrant_props["Q2"])
 gene_de <- data.frame(SYMBOL = u_sym, stringsAsFactors = FALSE)
 ## --- DM-site multiplicity ("dose") per gene, computed from is_DM alone -----
-## (available now: is_DM is per-CpG and independent of gene DE status, so this
-## can be computed before is_DE/log2FC are drawn, with no circularity)
 dm_count_tab <- table(cpg$m2_symbol[cpg$is_DM])
 gene_de$n_DM_sites <- as.integer(dm_count_tab[gene_de$SYMBOL])
 gene_de$n_DM_sites[is.na(gene_de$n_DM_sites)] <- 0L
@@ -294,14 +281,6 @@ for (p in seq_len(n_pairs)) {
   re[cpg$is_eqtm] <- w_idio * rnorm(sum(cpg$is_eqtm), 0, subj_sd_meth) + ## <-- eQTM: shared part Z[p]
     k_meth * Z[p]                                       ## <-- eQTM (- sign for anti-correlation)
   
-  ## v3 (numerically recalibrated, see comment above rho_delta_eqtm/delta_meth_sd):
-  ## d_meth goes back to PROBABILITY SPACE (like v1) -- logit space (v2) avoided
-  ## saturation but over-damped the signal via the sigmoid derivative, which at
-  ## n=50 and on a family of ~2400 tests with only 60 true positives did not
-  ## survive BH (observed recall 0.03). The difference from v1 is that d_meth
-  ## now uses delta_meth_sd (dedicated, NOT subj_sd_meth) with rho_delta_eqtm=0.97:
-  ## stronger and more deterministic, to compensate for the double noisiness of
-  ## a 50-pair difference versus the "clean" 100-sample signal of the eQTM 2.b.
   d_meth <- rep(0, n)                                                   ## <-- Delta: ASYMMETRIC term
   if (any(is_delta_c)) d_meth[is_delta_c] <- w_idio_delta * rnorm(sum(is_delta_c), 0, delta_meth_sd) +
     k_meth_delta * Z_delta[p]                                           ## <-- 60 Delta CpGs: Z_delta latent, independent of Z (eQTM)

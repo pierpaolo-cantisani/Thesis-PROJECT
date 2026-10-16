@@ -65,7 +65,3 @@ The pipeline is R-based (≥ 4.2). Key packages used across scripts:
 Reference assembly is **GRCh38** for all datasets. D1 and D2 raw data are
 lifted from hg19 to hg38 via `rtracklayer::liftOver`; D3 is already in hg38.
 
-## Methodological notes and known limitations
-
-Because this is a work in progress, some methodological choices are still 
-evolving and will be corrected and changed before the write-up of the final thesis.
